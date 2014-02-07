@@ -29,5 +29,6 @@ script
         . "$DEFAULTFILE"
     fi
     chdir "$BASE_PATH"
+	echo "Starting testreduce on port $PORT"
     exec /usr/bin/nodejs server.js $DAEMON_ARGS < /dev/null >> "$LOG_FILE" 2>&1
 end script

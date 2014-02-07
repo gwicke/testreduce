@@ -1,0 +1,17 @@
+Source: testreduce
+Section: web
+Priority: optional
+Maintainer: Gabriel Wicke <gwicke@wikimedia.org>
+Build-Depends: debhelper (>= 8.0.0), make, npm
+Standards-Version: 3.9.4
+Homepage: https://github.com/gwicke/testreduce.git
+Vcs-Git: https://github.com/gwicke/testreduce.git
+Vcs-Browser: https://github.com/gwicke/testreduce.git
+
+Package: testreduce
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}, mysql-server, nodejs
+Description: Distributed testing server
+ Distributed test server originally developed for Parsoid round-trip testing on
+ a large corpus of Wikipedia pages.  REST API with clients posting JUnit XML
+ results back to the server.

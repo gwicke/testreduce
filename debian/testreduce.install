@@ -1,0 +1,9 @@
+sql usr/lib/testreduce
+README.md usr/lib/testreduce
+static usr/lib/testreduce
+views usr/lib/testreduce
+*.js usr/lib/testreduce
+*.json usr/lib/testreduce
+*.json usr/lib/testreduce
+
+debian/settings.js /etc/testreduce/

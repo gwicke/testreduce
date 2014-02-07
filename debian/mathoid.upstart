@@ -1,0 +1,34 @@
+# vim: set ft=upstart:
+
+description "Parsoid HTTP service"
+
+start on (local-filesystem and net-device-up IFACE!=lo)
+stop on runlevel [!2345]
+
+# up ulimit -n a bit
+limit nofile 10000 10000
+
+setuid "parsoid"
+setgid "parsoid"
+
+env DEFAULTFILE=/etc/default/parsoid
+
+# Basic built-in defaults. Overridden by whatever
+# is defined in the DEFAULTFILE defined above.
+env VCAP_APP_PORT="8000"
+env NODE_PATH="/usr/lib/parsoid/node_modules"
+env PARSOID_BASE_PATH="/usr/lib/parsoid/src"
+env PARSOID_LOG_FILE="/dev/null"
+env PARSOID_SETTINGS_FILE="/etc/parsoid/settings.js"
+env DAEMON_ARGS="-c $PARSOID_SETTINGS_FILE"
+env PARSOID_PORT="8142"
+
+respawn
+
+script
+    if [ -f "$DEFAULTFILE" ] ; then
+        . "$DEFAULTFILE"
+    fi
+    chdir "$PARSOID_BASE_PATH"
+    exec /usr/bin/nodejs api/server.js $DAEMON_ARGS < /dev/null >> "$PARSOID_LOG_FILE" 2>&1
+end script

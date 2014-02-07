@@ -1,0 +1,56 @@
+/* Main stats page */
+
+.overview tr {
+	font-weight: bold
+}
+
+.overview td {
+	padding-left: 20px
+}
+
+.overview td + td {
+	text-align: right
+}
+
+#graph tr {
+	height: 60px;
+}
+
+#graph td[title='Perfect / no diffs'] {
+	background: green
+}
+
+#graph td[title='Syntactic diffs'] {
+	background: yellow
+}
+
+#graph td[title='Semantic diffs'] {
+	background: red
+}
+
+/* results table views */
+
+.results th {
+	padding: 0 10px;
+}
+
+.results td {
+	text-align: center;
+}
+
+.results td.title {
+	text-align: left;
+	padding-left: 0.4em;
+}
+
+.results tr[status='perfect'] td.title {
+	border-left: 5px solid green;
+}
+
+.results tr[status='skip'] td.title {
+	border-left: 5px solid orange;
+}
+
+.results tr[status='fail'] td.title { /* has fails and/or errors */
+	border-left: 5px solid red;
+}

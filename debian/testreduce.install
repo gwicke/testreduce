@@ -1,3 +1,4 @@
+node_modules usr/lib/testreduce
 sql usr/lib/testreduce
 README.md usr/lib/testreduce
 static usr/lib/testreduce

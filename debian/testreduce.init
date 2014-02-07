@@ -18,9 +18,10 @@
 PATH=/sbin:/usr/sbin:/bin:/usr/bin
 DESC="Testreduce HTTP service"
 NAME=testreduce
+BASE_PATH=/usr/lib/testreduce
 SCRIPT_PATH=/usr/lib/testreduce/server.js
 DAEMON="/usr/bin/nodejs $SCRIPT_PATH"
-DAEMON_ARGS=""
+DAEMON_ARGS="--config /etc/testreduce/settings.js"
 PIDFILE=/var/run/$NAME.pid
 SCRIPTNAME=/etc/init.d/$NAME
 
@@ -31,11 +32,11 @@ SCRIPTNAME=/etc/init.d/$NAME
 [ -r /etc/default/$NAME ] && . /etc/default/$NAME
 
 # export the port and host env vars, if set
-if [ ! -z "$TESTREDUCE_PORT" ];then
-    export TESTREDUCE_PORT="$TESTREDUCE_PORT"
+if [ ! -z "$PORT" ];then
+    export PORT="$PORT"
 fi
-if [ ! -z "$TESTREDUCE_INTERFACE" ];then
-    export TESTREDUCE_INTERFACE="$TESTREDUCE_INTERFACE"
+if [ ! -z "$INTERFACE" ];then
+    export INTERFACE="$INTERFACE"
 fi
 
 # Load the VERBOSE setting and other rcS variables
@@ -56,10 +57,12 @@ do_start()
 	#   1 if daemon was already running
 	#   2 if daemon could not be started
 	start-stop-daemon --start --quiet --pidfile $PIDFILE -bm --no-close \
+		-d $BASE_PATH \
 		-c testreduce:testreduce \
 		--exec $DAEMON --test > /dev/null \
 		|| return 1
 	start-stop-daemon --start --quiet --pidfile $PIDFILE -bm --no-close \
+		-d $BASE_PATH \
 		-c testreduce:testreduce \
 		--exec $DAEMON -- $DAEMON_ARGS >> /var/log/testreduce/testreduce.log 2>&1 \
 		|| return 2

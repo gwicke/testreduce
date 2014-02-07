@@ -20,13 +20,6 @@ var defaults = {
 	'batch': 50
 };
 
-// Settings file
-var settings;
-try {
-	settings = require( './server.settings.js' );
-} catch ( e ) {
-	settings = {};
-}
 
 // Command line options
 var argv = optimist.usage( 'Usage: $0 [connection parameters]' )
@@ -73,6 +66,9 @@ var argv = optimist.usage( 'Usage: $0 [connection parameters]' )
 		alias: 'cutofftime',
 		describe: "Time in seconds to wait for a test result."
 	} )
+	.options( 'config', {
+		describe: "Config file path"
+	} )
 	.options( 'b', {
 		alias: 'batch',
 		describe: "Number of titles to fetch from database in one batch."
@@ -82,6 +78,15 @@ var argv = optimist.usage( 'Usage: $0 [connection parameters]' )
 if ( argv.help ) {
 	optimist.showHelp();
 	process.exit( 0 );
+}
+
+// Settings file
+var settings;
+try {
+	var settingsPath = argv.config || './server.settings.js';
+	settings = require( settingsPath );
+} catch ( e ) {
+	settings = {};
 }
 
 var getOption = function( opt ) {

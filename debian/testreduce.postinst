@@ -53,8 +53,8 @@ chown testreduce testreduce 2>/dev/null ||
 MYSQL="mysql --defaults-file=/etc/mysql/debian.cnf"
 $MYSQL -e "create user  testreduce;"  || /bin/true
 $MYSQL -e "create database testreduce;" || /bin/true
-$MYSQL testreduce < /usr/lib/testreduce/sql/create_everything.mysql
-$MYSQL -e "GRANT ALL ON testreduce.* TO 'testreduce'@'localhost';"
+$MYSQL testreduce < /usr/lib/testreduce/sql/create_everything.mysql || /bin/true
+$MYSQL -e "GRANT ALL ON testreduce.* TO 'testreduce'@'localhost';" || /bin/true
 $MYSQL -e "flush privileges;"
 
 # dh_installdeb will replace this with shell code automatically

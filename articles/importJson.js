@@ -53,7 +53,9 @@ var argv = optimist.usage( 'Usage: ./importJson.js titles.example.json' )
 	} )
 	.options( 'p', {
 		alias: 'password',
-		describe: 'Password.'
+		describe: 'Password.',
+		'default': null
+
 	} )
 	.demand( 1 )
 	.argv;

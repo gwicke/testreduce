@@ -1,13 +1,13 @@
-# Defaults for parsoid initscript
+# Defaults for testreduce initscript
 
-# File where the parsoid daemon will write stderr and stdout to
-PARSOID_LOG_FILE=/var/log/parsoid/parsoid.log
+# File where the testreduce daemon will write stderr and stdout to
+LOG_FILE=/var/log/testreduce/testreduce.log
 
-PARSOID_SETTINGS_FILE=/etc/mediawiki/parsoid/settings.js
+SETTINGS_FILE=/etc/testreduce/settings.js
 
-PARSOID_PORT="8142"
+PORT="8001"
 
 # Default is to listen on all interfaces
-#PARSOID_INTERFACE="0.0.0.0"
+#INTERFACE="0.0.0.0"
 
-DAEMON_ARGS="-c $PARSOID_SETTINGS_FILE"
+DAEMON_ARGS="--config $SETTINGS_FILE"

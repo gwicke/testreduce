@@ -49,6 +49,13 @@ if [ "$1" = "purge" ] ; then
     if [ -d "/var/log/testreduce" ]; then
         rm -rf "/var/log/testreduce"
     fi
+
+	# remove mysql user and db
+	MYSQL="mysql --defaults-file=/etc/mysql/debian.cnf"
+	$MYSQL -e "drop user 'testreduce'@'localhost';"  || /bin/true
+	$MYSQL -e "drop database testreduce;" || /bin/true
+	$MYSQL -e "drop user testreduce;"  || /bin/true
+	$MYSQL -e "flush privileges;" || /bin/true
 fi
 
 # dh_installdeb will replace this with shell code automatically

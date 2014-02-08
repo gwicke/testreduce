@@ -823,31 +823,31 @@ var statsWebInterface = function ( req, res ) {
 			res.status( 200 );
 
 			var tests = row[0].total,
-			errorLess = row[0].no_errors,
-			skipLess = row[0].no_skips,
-			numRegressions = row[0].numregressions,
-			numFixes = row[0].numfixes,
-			noErrors = Math.round( 100 * 100 * errorLess / ( tests || 1 ) ) / 100,
-			perfects = Math.round( 100* 100 * skipLess / ( tests || 1 ) ) / 100,
-			syntacticDiffs = Math.round( 100 * 100 *
-				( row[0].no_fails / ( tests || 1 ) ) ) / 100;
+				errorLess = row[0].no_errors,
+				skipLess = row[0].no_skips,
+				numRegressions = row[0].numregressions,
+				numFixes = row[0].numfixes,
+				noErrors = Math.round( 100 * 100 * errorLess / ( tests || 1 ) ) / 100,
+				perfects = Math.round( 100* 100 * skipLess / ( tests || 1 ) ) / 100,
+				syntacticDiffs = Math.round( 100 * 100 *
+					( row[0].no_fails / ( tests || 1 ) ) ) / 100;
 
-		var width = 800;
+			var width = 800;
 
-		var data = {
-			prefix: prefix,
-			results: {
-				tests: tests,
-				noErrors: noErrors,
-				syntacticDiffs: syntacticDiffs,
-				perfects: perfects
-			},
-			graphWidths: {
-				perfect: width * perfects / 100 || 0,
-				syntacticDiff: width * ( syntacticDiffs - perfects ) / 100 || 0,
-				semanticDiff: width * ( 100 - syntacticDiffs ) / 100 || 0
-			},
-			latestRevision: [
+			var data = {
+				prefix: prefix,
+				results: {
+					tests: tests,
+					noErrors: noErrors,
+					syntacticDiffs: syntacticDiffs,
+					perfects: perfects
+				},
+				graphWidths: {
+					perfect: width * perfects / 100 || 0,
+					syntacticDiff: width * ( syntacticDiffs - perfects ) / 100 || 0,
+					semanticDiff: width * ( 100 - syntacticDiffs ) / 100 || 0
+				},
+				latestRevision: [
 				{ description: 'Git SHA1', value: row[0].maxhash },
 				{ description: 'Test Results', value: row[0].maxresults },
 				{ description: 'Crashers', value: row[0].crashers,
@@ -856,26 +856,26 @@ var statsWebInterface = function ( req, res ) {
 					url: '/regressions/between/' + row[0].secondhash + '/' + row[0].maxhash },
 				{ description: 'Fixes', value: numFixes,
 					url: '/topfixes/between/' + row[0].secondhash + '/' + row[0].maxhash },
-			],
-			averages: [
+				],
+				averages: [
 				{ description: 'Errors', value: row[0].avgerrors },
 				{ description: 'Fails', value: row[0].avgfails },
 				{ description: 'Skips', value: row[0].avgskips },
 				{ description: 'Score', value: row[0].avgscore }
-			],
-			pages: pageListData
-		};
+				],
+					pages: pageListData
+			};
 
-		// round numeric data, but ignore others
-		hbs.registerHelper('round', function (val) {
-			if ( isNaN(val) ) {
-				return val;
-			} else {
-				return Math.round( val * 100 ) / 100;
-			}
-		});
+			// round numeric data, but ignore others
+			hbs.registerHelper('round', function (val) {
+				if ( isNaN(val) ) {
+					return val;
+				} else {
+					return Math.round( val * 100 ) / 100;
+				}
+			});
 
-		res.render('index.html', data);
+			res.render('index.html', data);
 		}
 	});
 };

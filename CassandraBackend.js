@@ -1,5 +1,6 @@
 // Constructor
-function CassandraBackend() {
+function CassandraBackend(config) {
+  this.config = config;
 }
 
 /**

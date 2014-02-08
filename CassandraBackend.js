@@ -12,9 +12,9 @@ function CassandraBackend() {
  * @returns object that serializes to JSON, for example
  * [ 'enwiki', 'some title', 12345 ]
  */
-CassandraBackend.prototype.getTest(commit) {
+CassandraBackend.prototype.getTest = function (commit) {
 	return [ 'enwiki', 'some title', 12345 ];
-}
+};
 
 /**
  * Add a result to storage
@@ -26,5 +26,5 @@ CassandraBackend.prototype.getTest(commit) {
  * @param result string (JUnit XML typically)
  * @return void
  */
-CassandraBackend.prototype.addResult(commit, result) {
-}
+CassandraBackend.prototype.addResult = function(commit, result) {
+};

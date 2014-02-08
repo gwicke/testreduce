@@ -1,3 +1,8 @@
+testreduce (0.1.1) wmf-production; urgency=low
+
+  * Bump version
+
+ -- Gabriel Wicke <gwicke@wikimedia.org>  Thu, 06 Feb 2014 18:15:30 -0800
 testreduce (0.1.0) wmf-production; urgency=low
 
   * Initial Release.

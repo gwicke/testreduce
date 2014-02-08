@@ -29,3 +29,7 @@ CassandraBackend.prototype.getTest = function (commit) {
  */
 CassandraBackend.prototype.addResult = function(commit, result) {
 };
+
+// Node.js module exports. This defines what
+// require('./CassandraBackend.js'); evaluates to.
+module.exports = CassandraBackend;

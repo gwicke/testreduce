@@ -206,7 +206,7 @@ var GET_commits = function( req, res ) {
 };
 var GET_perfStats = function( req, res ) {
 	res.write('<html><body>\n');
-	res.write('Preformance stats go here');
+	res.write('Performance stats go here');
 	res.end('</body></html>');
 };
 

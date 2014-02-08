@@ -139,35 +139,6 @@ var receiveResults = function ( req, res ) {
 	res.end( 'receive results not implemented yet' );
 };
 
-var pageStatus = function(row) {
-	var hasStatus = row.hasOwnProperty( 'skips' ) &&
-		row.hasOwnProperty( 'fails' ) &&
-		row.hasOwnProperty( 'errors' );
-
-	if (hasStatus) {
-		if ( row.skips === 0 && row.fails === 0 && row.errors === 0 ) {
-			return 'perfect';
-		} else if ( row.errors > 0 || row.fails > 0 ) {
-			return 'fail';
-		} else {
-			return 'skip';
-		}
-	}
-	return null;
-};
-
-var pageTitleData = function(row){
-	var prefix = encodeURIComponent( row.prefix ),
-	title = encodeURIComponent( row.title );
-	return {
-		title: row.prefix + ':' + row.title,
-		titleUrl: 'http://parsoid.wmflabs.org/_rt/' + prefix + '/' + title,
-		lh: 'http://localhost:8000/_rt/' + prefix + '/' + title,
-		latest: '/latestresult/' + prefix + '/' + title,
-		perf: '/pageperfstats/' + prefix + '/' + title
-	};
-};
-
 var statsWebInterface = function ( req, res ) {
 	res.write('<html><body>\n');
 	res.write('Stats web interface goes here');

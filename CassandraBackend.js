@@ -6,12 +6,12 @@ function CassandraBackend(config) {
 /**
  * Get the next title to test
  *
- * commit is object {
+ * @param commit object {
  *	hash: <git hash string>
  *	timestamp: <git commit timestamp date object>
  * }
- * @returns object that serializes to JSON, for example
- * [ 'enwiki', 'some title', 12345 ]
+ * @param cb function (err, test) with test being an object that serializes to
+ * JSON, for example [ 'enwiki', 'some title', 12345 ]
  */
 CassandraBackend.prototype.getTest = function (commit, cb) {
 
@@ -27,7 +27,7 @@ CassandraBackend.prototype.getTest = function (commit, cb) {
  *	timestamp: <git commit timestamp date object>
  * }
  * @param result string (JUnit XML typically)
- * @return void
+ * @param cb callback (err) err or null
  */
 CassandraBackend.prototype.addResult = function(test, commit, result, cb) {
 }

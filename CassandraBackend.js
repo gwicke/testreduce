@@ -13,8 +13,9 @@ function CassandraBackend(config) {
  * @returns object that serializes to JSON, for example
  * [ 'enwiki', 'some title', 12345 ]
  */
-CassandraBackend.prototype.getTest = function (commit) {
-	return [ 'enwiki', 'some title', 12345 ];
+CassandraBackend.prototype.getTest = function (commit, cb) {
+
+	cb([ 'enwiki', 'some title', 12345 ]);
 };
 
 /**
@@ -28,8 +29,7 @@ CassandraBackend.prototype.getTest = function (commit) {
  * @param result string (JUnit XML typically)
  * @return void
  */
-CassandraBackend.prototype.addResult = function(test, commit, result) {
-
+CassandraBackend.prototype.addResult = function(test, commit, result, cb) {
 }
 
 // Node.js module exports. This defines what

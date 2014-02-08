@@ -124,6 +124,8 @@ var // The maximum number of tries per article
 	batchSize = getOption( 'batch' ),
 	debug = getOption( 'debug' );
 
+// mysql initialization
+// TODO: replace mysql with cassandra
 var mysql = require( 'mysql' );
 var db = mysql.createConnection({
 	host     : getOption( 'host' ),

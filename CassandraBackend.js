@@ -20,6 +20,7 @@ CassandraBackend.prototype.getTest = function (commit) {
 /**
  * Add a result to storage
  *
+ * @param test string representing what test we're running
  * @param commit object {
  *	hash: <git hash string>
  *	timestamp: <git commit timestamp date object>
@@ -27,8 +28,9 @@ CassandraBackend.prototype.getTest = function (commit) {
  * @param result string (JUnit XML typically)
  * @return void
  */
-CassandraBackend.prototype.addResult = function(commit, result) {
-};
+CassandraBackend.prototype.addResult = function(test, commit, result) {
+
+}
 
 // Node.js module exports. This defines what
 // require('./CassandraBackend.js'); evaluates to.

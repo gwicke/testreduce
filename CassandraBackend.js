@@ -2,7 +2,8 @@ var util = require('util'),
   events = require('events'),
   cass = require('node-cassandra-cql'),
   consistencies = cass.types.consistencies,
-  uuid = require('node-uuid');
+  uuid = require('node-uuid'),
+  async = require('async');
 
 // Constructor
 function CassandraBackend(name, config, callback) {
@@ -31,14 +32,23 @@ function CassandraBackend(name, config, callback) {
   this.client.on('connection', reconnectCB);
   this.client.connect();
 
+  var numFailures = config.numFailures;
+
+  // Queues that we use for
+  self.runningQueue = new Array();
+  self.testQueue = new Array();
+
+  // Load all the tests from Cassandra - do this when we see a new commit hash
 
   //this.client.on('log', function(level, message) {
   //  console.log('log event: %s -- %j', level, message);
   //});
   callback();
-
-  // Create queue - self.queue = <something>
 }
+
+// CassandraBackend.prototype._loadCommits = function(cb) {
+//     this.client.execute("SELECT * from tests", null, this.consistencies.read, queryCB);
+// }
 
 util.inherits(CassandraBackend, events.EventEmitter);
 
@@ -53,7 +63,6 @@ util.inherits(CassandraBackend, events.EventEmitter);
  * [ 'enwiki', 'some title', 12345 ]
  */
 CassandraBackend.prototype.getTest = function (commit, cb) {
-
 	cb([ 'enwiki', 'some title', 12345 ]);
 };
 

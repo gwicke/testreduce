@@ -7,8 +7,6 @@ var util = require('util'),
 
 // Constructor
 function CassandraBackend(name, config, callback) {
-  events.EventEmitter.call(this);
-
   var self = this;
 
   this.name = name;
@@ -45,12 +43,6 @@ function CassandraBackend(name, config, callback) {
   //});
   callback();
 }
-
-// CassandraBackend.prototype._loadCommits = function(cb) {
-//     this.client.execute("SELECT * from tests", null, this.consistencies.read, queryCB);
-// }
-
-util.inherits(CassandraBackend, events.EventEmitter);
 
 /**
  * Get the next title to test

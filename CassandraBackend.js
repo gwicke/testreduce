@@ -47,13 +47,6 @@ function CassandraBackend(name, config, callback) {
   callback();
 }
 
-
-// Constructor
-function CassandraBackend(config) {
-	this.config = config;
-
-}
-
 // cb is getTests
 function getCommits(cb) {
 	var queryCB = function (err, results) {

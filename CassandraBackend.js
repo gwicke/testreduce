@@ -36,19 +36,25 @@ function CassandraBackend(name, config, callback) {
   self.runningQueue = new Array();
   self.testQueue = new Array();
 
+  self.testArr = {};
+  self.testHash = {};
+
   // Load all the tests from Cassandra - do this when we see a new commit hash
+    getCommits.bind(this);
+    getTests.bind(this);
+    initTestPQ(this);
     async.waterfall([getCommits, getTests, initTestPQ], function(err) {
-        for (test in testsList) {
-            if (!(test in testHash)) {
+        for (test in self.testsList) {
+            if (!(test in self.testHash)) {
                 // construct resultObj
                 var resultObj = {test: test, score: Infinity, commitIndex: -1};
-                testArr.push(resultObj);
-                testHash.push(test)
+                self.testArr.push(resultObj);
+                self.testHash.push(test)
             }
         }
         
         // sort testArr by score
-        testArr.sort(function(a,b) {
+        self.testArr.sort(function(a,b) {
             return b.score - a.score;
         });
     });
@@ -61,19 +67,19 @@ function CassandraBackend(name, config, callback) {
 
 // cb is getTests
 function getCommits(cb) {
-	var self = this;
 	var queryCB = function (err, results) {
 			if (err) {
 				cb(err);
 			} else if (!results || !results.rows) {
-				self.commits = [];
+				this.commits = [];
 				cb(null);
 			} else {
-                self.commits = results.rows;
+                this.commits = results.rows;
 				cb(null); 
 			}
 		};
 
+    queryCB.bind(this);
 	var args = [];
 
 	// get commits to tids
@@ -84,19 +90,19 @@ function getCommits(cb) {
 
 // cb is initTestPQ
 function getTests(cb) {
-    var self = this;
 	var queryCB = function (err, results) {
 			if (err) {
 				cb(err);
 			} else if (!results || !results.rows) {
-                self.testsList = [];
+                this.testsList = [];
 				cb(null, 0, 0);
 			} else {
-                self.testsList = testsList;
+                this.testsList = testsList;
 				cb(null, 0, results.rows.length);
 			}
 		};
 
+    queryCB.bind(this);
 	var args = [];
 
 	// get tests
@@ -107,7 +113,6 @@ function getTests(cb) {
 }
 
 function initTestPQ(commitIndex, numTestsLeft, cb) {
-    var self = this;
 	var queryCB = function (err, results) {
 			if (err) {
 				cb(err);
@@ -115,23 +120,25 @@ function initTestPQ(commitIndex, numTestsLeft, cb) {
 				cb(null);
 			} else {
 				for (result in results) {
-					if (!(result.test in self.testHash)) {
+					if (!(result.test in this.testHash)) {
 						// construct resultObj
                         var resultObj = {test: test, score: score, commitIndex: commitIndex};
-						self.testArr.push(resultObj);
-                        self.testHash.push(result.test)
+						this.testArr.push(resultObj);
+                        this.testHash.push(result.test)
 						numTestsLeft--;
 					}
 				}
 
-				if (numTestsLeft == 0 || self.commits[commitIndex].isSnapshot) {
+				if (numTestsLeft == 0 || this.commits[commitIndex].isSnapshot) {
 					cb(null);
 				}
 				initTestPQ(commitIndex+1, numTestsLeft, cb);
 			}
 		};
 
-	var lastCommit = self.commits[commitIndex].hash;
+    queryCB.bind(this);
+
+	var lastCommit = this.commits[commitIndex].hash;
     var args = [lastCommit];
 
 	var cql = 'select (test, score, commit) from test_by_score where commit = ?';
@@ -151,16 +158,27 @@ function initTestPQ(commitIndex, numTestsLeft, cb) {
  * JSON, for example [ 'enwiki', 'some title', 12345 ]
  */
 CassandraBackend.prototype.getTest = function (commit, cb) {
+
+    /*
 	// check running queue for any timed out tests.
-	// if any timed out, 
-		//if tries < threshold: 
-			// increment tries, return it;
-		// else:
-			// pop it;
+    for (testObj in runningQueue) {
+        // if any timed out, 
+        if (testObj timed out)  {
+            if (testObj.tries < threshold) { 
+                // increment tries, return it;
+                testObj.tries++;
+                cb(null, testObj.test);
+            } else {
+                // pop it; (discard the result)
+                runningQueue.pop();
+            }
+        }
+    }
+	
 	// pop test from test queue
 	// push test into running queue
 	// increment tries, return test;
-
+    */
 	cb([ 'enwiki', 'some title', 12345 ]);
 };
 

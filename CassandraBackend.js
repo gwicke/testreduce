@@ -87,17 +87,14 @@ CassandraBackend.prototype.getFails = function(offset, limit, cb) {
      *
      * @param results array [
      *    object {
-     *      commit object {
-     *        hash: <git hash string>,
-     *        timestamp: <git commit timestamp date object>
-     *        },
-     *      test string? test specifications,
-     *      result object {
-     *        skips,
-     *        fails,
-     *        errors
-     *        }
-     *    }
+     *      commit: <commit hash>,
+     *      prefix: <prefix>,
+     *      title:  <title>
+     *      status: <status> // 'perfect', 'skip', 'fail', or null
+     *      skips:  <skip count>,
+     *      fails:  <fails count>,
+     *      errors: <errors count>
+     *      }
      * ]
      */
     cb([]);

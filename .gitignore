@@ -1,3 +1,4 @@
 node_modules
 server.settings.js
+server-mysql.settings.js
 .*.swp

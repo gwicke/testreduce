@@ -83,7 +83,7 @@ if ( argv.help ) {
 // Settings file
 var settings;
 try {
-	var settingsPath = argv.config || './server.settings.js';
+	var settingsPath = argv.config || './server-mysql.settings.js';
 	settings = require( settingsPath );
 } catch ( e ) {
 	settings = {};

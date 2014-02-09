@@ -152,9 +152,45 @@ var statsWebInterface = function ( req, res ) {
 };
 
 var failsWebInterface = function ( req, res ) {
-	res.write('<html><body>\n');
-	res.write('Fails page goes here');
-	res.end('</body></html>');
+	var page = ( req.params[0] || 0 ) - 0,
+		offset = page * 40;
+	var backend = new CassandraBackend();
+
+	backend.getFails(offset, 40, function(results) {
+		//   object {
+		//     commit: <commit hash>,
+		//     prefix: <prefix>,
+		//     title:  <title>
+		//     status: <status> // 'perfect', 'skip', 'fail', or null
+		//     skips:  <skip count>,
+		//     fails:  <fails count>,
+		//     errors: <errors count>
+		//     }
+		//]
+		for (var i = 0; i < results.length; i++) {
+			results[i].pageTitleData = {
+				// foobar
+			};
+			results[i].commitLinkData = {
+				url: 'foo',
+				name: results[i].commit.substr(0,7)
+			};
+		}
+
+		var data = {
+			page: page,
+			urlPrefix: '/topfails',
+			uslSuffix: '',
+			headind: 'Results by title',
+			header: ['Title', 'Commit', 'Syntatic diffs', 'Semantic diffs', 'Errors'],
+			paginate: true,
+			row: results,
+			prev: page > 0,
+			next: results.length === 40
+		}
+		
+		res.render('table.html', data);
+	});
 };
 
 var resultsWebInterface = function ( req, res ) {

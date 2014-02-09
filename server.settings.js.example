@@ -1,7 +1,7 @@
 /*
  * This is a sample configuration file.
  * Copy this file to server.settings.js and edit that file to fit your
- * MySQL connection and other settings.
+ * Cassandra connection and other settings.
  *
  * You can also override these settings with command line options, run
  * $ node server.js --help
@@ -9,36 +9,45 @@
  */
 
 module.exports = {
-	// Hostname of the database server.
-	host: "localhost",
+    // Database connection settings.
+    "backend": {
+        // Database type.
+        "type": "cassandra",
 
-	// Port number to use for connection.
-	port: 3306,
+        // Database options.
+        "options": {
+            // Array of string in host:port format. Port is optional (default 9042).
+            "hosts": ["localhost"],
 
-	// Database to use.
-	database: "parsoid",
+            // Name of keyspace to use.
+            "keyspace": "testreducedb",
 
-	// User for MySQL login.
-	user: "parsoid",
+            // User for authentication.
+            "username": "testreduce",
 
-	// Password.
-	password: "parsoidpw",
+            // Password for authentication.
+            "password": "",
 
-	// Output MySQL debug data.
-	debug: false,
+            // Number of connections to open for each host (default 1).
+            "poolSize": 1,
 
-	// Number of times to try fetching a page.
-	fetches: 6,
+            // CQL consistencies defined as properties.
+            "consistencies": {
+              "read": "one",
+              "write": "one"
+            }
+        }
+    }
 
-	// Number of times an article will be sent for testing before it's
-	// considered an error.
-	tries: 6,
+    // Number of times to try fetching a page.
+    "fetches": 6,
 
-	// Time in seconds to wait for a test result. If a test takes longer than
-	// this, it will be considered a crash error. Be careful not to set this to
-	// less than what any page takes to parse.
-	cutofftime: 600,
+    // Number of times an article will be sent for testing before it's
+    // considered an error.
+    "tries": 6,
 
-	// Number of titles to fetch from database in one batch.
-	batch: 50
+    // Time in seconds to wait for a test result. If a test takes longer than
+    // this, it will be considered a crash error. Be careful not to set this to
+    // less than what any page takes to parse.
+    cutofftime: 600,
 };

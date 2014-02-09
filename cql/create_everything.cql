@@ -5,7 +5,7 @@ use testreducedb;
 
 -- Results of a particular test at a time.
 CREATE TABLE IF NOT EXISTS results (
-    test text,
+    test blob,
     tid timeuuid,
     result text,
     PRIMARY KEY(test, tid)
@@ -14,14 +14,15 @@ CREATE TABLE IF NOT EXISTS results (
 -- Map commits to score and test.
 CREATE TABLE IF NOT EXISTS test_by_score (
     commit blob,
+    delta int,
     score int,
-    test text,
-    PRIMARY KEY(commit, score, test)
-) WITH CLUSTERING ORDER BY (score DESC);
+    test blob,
+    PRIMARY KEY(commit, delta, test)
+);
 
 -- List of tests
 CREATE TABLE IF NOT EXISTS tests (
-    test text,
+    test blob,
     PRIMARY KEY (test)
 );
 

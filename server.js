@@ -131,6 +131,8 @@ var // The maximum number of tries per article
  * } );
  */
 
+
+
 /*BEGIN: COORD APP*/
 var getTitle = function ( req, res ) {
 	res.end( 'get title not implemented yet');
@@ -142,7 +144,9 @@ var receiveResults = function ( req, res ) {
 /*END: COORD APP*/
 
 var statsWebInterface = function ( req, res ) {
+
 	res.write('<html><body>\n');
+	res.write('<p>The Number of regressions is: ' + ' </p>')
 	res.write('Stats web interface goes here');
 	res.end('</body></html>');
 };
@@ -190,6 +194,16 @@ var GET_skipsDistr = function( req, res ) {
 };
 
 var GET_regressions = function( req, res ) {
+    var commit1 = req.params[0];
+    var commit2 = req.params[1];
+
+	var urlPrefix = "/regressions/between/" + r1 + "/" + r2;
+	page = (req.params[2] || 0) - 0;
+	offset = page * 40;
+
+    //use cassandra function to retrieve to commits
+
+
 	res.write('<html><body>\n');
 	res.write('Regressions page goes here');
 	res.end('</body></html>');

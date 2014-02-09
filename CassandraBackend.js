@@ -45,6 +45,20 @@ function CassandraBackend(name, config, callback) {
 }
 
 /**
+ * Get the number of regressions based on the previous commit
+ *
+ * @param commit1 object {
+ *  hash: <git hash string>
+ *  timestamp: <git commit timestamp date object>
+ * }
+ * @param cb function (err, num) - num is the number of regressions for the last commit
+ */
+CassandraBackend.prototype.getNumRegressions = function (commit, cb) {
+  var fakeNum = 3;
+  cb(null, fakeNum);
+};
+
+/**
  * Get the next title to test
  *
  * @param commit object {

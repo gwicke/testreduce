@@ -41,5 +41,5 @@ CREATE TABLE IF NOT EXISTS pages (
     claim_hash blob,
     claim_timestamp timeuuid,
     claim_num_tries int,
-    PRIMARY KEY(title, prefix);
+    PRIMARY KEY(title, prefix)
 );

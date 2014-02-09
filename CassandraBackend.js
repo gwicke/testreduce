@@ -3,7 +3,9 @@ var util = require('util'),
   cass = require('node-cassandra-cql'),
   consistencies = cass.types.consistencies,
   uuid = require('node-uuid'),
+  mock = require('./mockdata'),
   async = require('async');
+
 
 // Constructor
 function CassandraBackend(name, config, callback) {
@@ -58,6 +60,8 @@ CassandraBackend.prototype.getNumRegressions = function (commit, cb) {
   cb(null, fakeNum);
 };
 
+
+
 /**
  * Get the next title to test
  *
@@ -71,6 +75,42 @@ CassandraBackend.prototype.getNumRegressions = function (commit, cb) {
 CassandraBackend.prototype.getTest = function (commit, cb) {
 	cb([ 'enwiki', 'some title', 12345 ]);
 };
+
+/**
+ * Get results ordered by score
+ *
+ * @param cb- (err, result), result is defined below
+ *
+ */
+CassandraBackend.prototype.getStatistics = function(cb) {
+
+    /**
+     * @param results 
+     *    object {
+     *       tests: <test count>,
+     *       noskips: <tests without skips>,
+     *       nofails: <tests without fails>,
+     *       noerrors: <tests without error>,
+     *
+     *       latestcommit: <latest commit hash>,
+     *       beforelatestcommit: <commit before latest commit>,
+     *
+     *       averages: {
+     *           errors: <average num errors>,
+     *           fails: <average num fails>,
+     *           skips: <average num skips>,
+     *           scores: <average num scores>
+     *       },
+     *       
+     *       crashes: <num crashes>,
+     *       regressions: <num regressions>,
+     *       fixes: <num fixes>
+     *   }
+     * 
+     */
+    var results = mock;
+    cb(null, results);
+}
 
 /**
  * Add a result to storage

@@ -212,6 +212,34 @@ var statsScore = function(skipCount, failCount, errorCount) {
 	return errorCount*1000000+failCount*1000+skipCount;
 };
 
+/**
+ * Get results ordered by score
+ *
+ * @param offset (for pagination)
+ * @param limit  (for pagination)
+ * @param cb
+ *
+ */
+CassandraBackend.prototype.getFails = function(offset, limit, cb) {
+
+    /**
+     * cb
+     *
+     * @param results array [
+     *    object {
+     *      commit: <commit hash>,
+     *      prefix: <prefix>,
+     *      title:  <title>
+     *      status: <status> // 'perfect', 'skip', 'fail', or null
+     *      skips:  <skip count>,
+     *      fails:  <fails count>,
+     *      errors: <errors count>
+     *      }
+     * ]
+     */
+    cb([]);
+}
+
 // Node.js module exports. This defines what
 // require('./CassandraBackend.js'); evaluates to.
 module.exports = CassandraBackend;

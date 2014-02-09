@@ -131,6 +131,7 @@ var // The maximum number of tries per article
  * } );
  */
 
+/*BEGIN: COORD APP*/
 var getTitle = function ( req, res ) {
 	res.end( 'get title not implemented yet');
 };
@@ -138,6 +139,7 @@ var getTitle = function ( req, res ) {
 var receiveResults = function ( req, res ) {
 	res.end( 'receive results not implemented yet' );
 };
+/*END: COORD APP*/
 
 var statsWebInterface = function ( req, res ) {
 	res.write('<html><body>\n');
@@ -286,6 +288,7 @@ app.use( '/commits', GET_commits );
 app.use( '/static', express.static( __dirname + '/static' ) );
 
 // Clients will GET this path if they want to run a test
+//
 coordApp.get( /^\/title$/, getTitle );
 
 // Receive results from clients

@@ -4,6 +4,8 @@ var util = require('util'),
   consistencies = cass.types.consistencies,
   uuid = require('node-uuid'),
   async = require('async');
+  testPQ = require('priorityqueuejs');
+
 
 // Constructor
 function CassandraBackend(name, config, callback) {
@@ -37,11 +39,99 @@ function CassandraBackend(name, config, callback) {
   self.testQueue = new Array();
 
   // Load all the tests from Cassandra - do this when we see a new commit hash
+	async.waterfall([getCommits, getTests, initTestPQ]);
 
   //this.client.on('log', function(level, message) {
   //  console.log('log event: %s -- %j', level, message);
   //});
   callback();
+}
+
+
+// Constructor
+function CassandraBackend(config) {
+	this.config = config;
+
+}
+
+// cb is getTests
+function getCommits(cb) {
+	var queryCB = function (err, results) {
+			if (err) {
+				cb(err);
+			} else if (!results || !results.rows || results.rows.length === 0) {
+				cb(null, []);
+			} else {
+				cb(null, results.rows); // Second argument becomes first for getTests
+			}
+		};
+
+	var args = [];
+
+	// get commits to tids
+	var cql = 'select * from commits_to_tid;\n';
+
+	this.client.execute(cql, args, this.consistencies.write, queryCB);
+}
+
+// cb is initTestPQ
+function getTests(commits, cb) {
+	var queryCB = function (err, results) {
+			if (err) {
+				cb(err);
+			} else if (!results || !results.rows || results.rows.length === 0) {
+				cb(null, commits, 0, [], 0);
+			} else {
+				cb(null, commits, 0, results.rows, results.rows.length);
+			}
+		};
+
+	var args = [];
+
+	// get tests
+	var cql = 'select * from tests;\n';
+
+	// And finish it off
+	this.client.execute(cql, args, this.consistencies.write, queryCB);
+}
+
+function initTestPQ(commits, commitIndex, testsList, numTestsLeft, cb) {
+	var queryCB = function (err, results) {
+			if (err) {
+				cb(err);
+			} else if (!results || !results.rows || results.rows.length === 0) {
+				cb(null, commits, []);
+			} else {
+				for (result in results) {
+					if (something) {
+						// construct result
+						testPQ.enq(result);
+						numTestsLeft--;
+					}
+				}
+
+				if (numTestsLeft == 0 || currentCommit.isSnapshot) {
+					cb(null, commits);
+				}
+				initTestPQ(commits, commitIndex+1, testsList, numTestsLeft, cb);
+			}
+		};
+
+	// find latest snapshot commit
+	var args = [];
+
+	var lastCommit = commits[commitIndex].hash;
+
+	var cql = 'select (test, score, commit) from test_by_score where commit = ' + lastCommit;
+
+	this.client.execute(cql, args, this.consistencies.write, queryCB);
+
+
+	// for each commit from closest snapshot to newest commit,  
+		// select (test, score) from test_by_score where commit = commit;
+		// testQueue[test] = score
+	// for all tests in testsList:
+		// if there is no testQueue[tests], init to high score 
 }
 
 /**
@@ -55,6 +145,16 @@ function CassandraBackend(name, config, callback) {
  * JSON, for example [ 'enwiki', 'some title', 12345 ]
  */
 CassandraBackend.prototype.getTest = function (commit, cb) {
+	// check running queue for any timed out tests.
+	// if any timed out, 
+		//if tries < threshold: 
+			// increment tries, return it;
+		// else:
+			// pop it;
+	// pop test from test queue
+	// push test into running queue
+	// increment tries, return test;
+
 	cb([ 'enwiki', 'some title', 12345 ]);
 };
 
@@ -70,7 +170,54 @@ CassandraBackend.prototype.getTest = function (commit, cb) {
  * @param cb callback (err) err or null
  */
 CassandraBackend.prototype.addResult = function(test, commit, result, cb) {
+	var tid = commit.timestamp; // fix 
+
+	var skipCount = result.match( /<skipped/g ),
+			failCount = result.match( /<failure/g ),
+			errorCount = result.match( /<error/g );
+
+	// Build up the CQL
+	// Simple revison table insertion only for now
+	var cql = 'BEGIN BATCH ',
+		args = [],
+
+	var score = statsScore(skipCount, failCount, errorCount);
+
+	// Insert into results
+	cql += 'insert into results (test, tid, result)' +
+				'values(?, ?, ?);\n';
+	args = args.concat([
+			test,
+			tid,
+			result
+		]);
+
+	// Check if test score changed
+	if (testScores[test] == score) {
+		// If changed, update test_by_score
+		cq += 'insert into test_by_score (commit, score, test)' +
+					'values(?, ?, ?);\n';
+		args = args.concat([
+				commit,
+				score,
+				test;
+			]);
+
+		// Update scores in memory;
+		testScores[test] = score;
+	}
+	// And finish it off
+	cql += 'APPLY BATCH;';
+
+	this.client.execute(cql, args, this.consistencies.write, cb);
+
 }
+
+var statsScore = function(skipCount, failCount, errorCount) {
+	// treat <errors,fails,skips> as digits in a base 1000 system
+	// and use the number as a score which can help sort in topfails.
+	return errorCount*1000000+failCount*1000+skipCount;
+};
 
 // Node.js module exports. This defines what
 // require('./CassandraBackend.js'); evaluates to.

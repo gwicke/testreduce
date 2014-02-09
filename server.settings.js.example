@@ -49,5 +49,5 @@ module.exports = {
     // Time in seconds to wait for a test result. If a test takes longer than
     // this, it will be considered a crash error. Be careful not to set this to
     // less than what any page takes to parse.
-    cutofftime: 600,
+    "cutofftime": 600
 };

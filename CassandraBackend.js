@@ -4,8 +4,6 @@ var util = require('util'),
   consistencies = cass.types.consistencies,
   uuid = require('node-uuid'),
   async = require('async');
-  testPQ = require('priorityqueuejs');
-
 
 // Constructor
 function CassandraBackend(name, config, callback) {
@@ -39,7 +37,21 @@ function CassandraBackend(name, config, callback) {
   self.testQueue = new Array();
 
   // Load all the tests from Cassandra - do this when we see a new commit hash
-	async.waterfall([getCommits, getTests, initTestPQ]);
+    async.waterfall([getCommits, getTests, initTestPQ], function(err) {
+        for (test in testsList) {
+            if (!(test in testHash)) {
+                // construct resultObj
+                var resultObj = {test: test, score: Infinity, commitIndex: -1};
+                testArr.push(resultObj);
+                testHash.push(test)
+            }
+        }
+        
+        // sort testArr by score
+        testArr.sort(function(a,b) {
+            return b.score - a.score;
+        });
+    });
 
   //this.client.on('log', function(level, message) {
   //  console.log('log event: %s -- %j', level, message);
@@ -49,13 +61,16 @@ function CassandraBackend(name, config, callback) {
 
 // cb is getTests
 function getCommits(cb) {
+	var self = this;
 	var queryCB = function (err, results) {
 			if (err) {
 				cb(err);
-			} else if (!results || !results.rows || results.rows.length === 0) {
-				cb(null, []);
+			} else if (!results || !results.rows) {
+				self.commits = [];
+				cb(null);
 			} else {
-				cb(null, results.rows); // Second argument becomes first for getTests
+                self.commits = results.rows;
+				cb(null); 
 			}
 		};
 
@@ -68,14 +83,17 @@ function getCommits(cb) {
 }
 
 // cb is initTestPQ
-function getTests(commits, cb) {
+function getTests(cb) {
+    var self = this;
 	var queryCB = function (err, results) {
 			if (err) {
 				cb(err);
-			} else if (!results || !results.rows || results.rows.length === 0) {
-				cb(null, commits, 0, [], 0);
+			} else if (!results || !results.rows) {
+                self.testsList = [];
+				cb(null, 0, 0);
 			} else {
-				cb(null, commits, 0, results.rows, results.rows.length);
+                self.testsList = testsList;
+				cb(null, 0, results.rows.length);
 			}
 		};
 
@@ -88,43 +106,38 @@ function getTests(commits, cb) {
 	this.client.execute(cql, args, this.consistencies.write, queryCB);
 }
 
-function initTestPQ(commits, commitIndex, testsList, numTestsLeft, cb) {
+function initTestPQ(commitIndex, numTestsLeft, cb) {
+    var self = this;
 	var queryCB = function (err, results) {
 			if (err) {
 				cb(err);
 			} else if (!results || !results.rows || results.rows.length === 0) {
-				cb(null, commits, []);
+				cb(null);
 			} else {
 				for (result in results) {
-					if (something) {
-						// construct result
-						testPQ.enq(result);
+					if (!(result.test in self.testHash)) {
+						// construct resultObj
+                        var resultObj = {test: test, score: score, commitIndex: commitIndex};
+						self.testArr.push(resultObj);
+                        self.testHash.push(result.test)
 						numTestsLeft--;
 					}
 				}
 
-				if (numTestsLeft == 0 || currentCommit.isSnapshot) {
-					cb(null, commits);
+				if (numTestsLeft == 0 || self.commits[commitIndex].isSnapshot) {
+					cb(null);
 				}
-				initTestPQ(commits, commitIndex+1, testsList, numTestsLeft, cb);
+				initTestPQ(commitIndex+1, numTestsLeft, cb);
 			}
 		};
 
-	// find latest snapshot commit
-	var args = [];
+	var lastCommit = self.commits[commitIndex].hash;
+    var args = [lastCommit];
 
-	var lastCommit = commits[commitIndex].hash;
-
-	var cql = 'select (test, score, commit) from test_by_score where commit = ' + lastCommit;
+	var cql = 'select (test, score, commit) from test_by_score where commit = ?';
 
 	this.client.execute(cql, args, this.consistencies.write, queryCB);
 
-
-	// for each commit from closest snapshot to newest commit,  
-		// select (test, score) from test_by_score where commit = commit;
-		// testQueue[test] = score
-	// for all tests in testsList:
-		// if there is no testQueue[tests], init to high score 
 }
 
 /**

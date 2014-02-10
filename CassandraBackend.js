@@ -38,28 +38,28 @@ function CassandraBackend(name, config, callback) {
   self.runningQueue = new Array();
   self.testQueue = new Array();
 
-  self.testArr = {};
+  self.testArr = [];
   self.testHash = {};
 
   // Load all the tests from Cassandra - do this when we see a new commit hash
-    getCommits.bind(this);
-    getTests.bind(this);
-    initTestPQ(this);
-    async.waterfall([getCommits, getTests, initTestPQ], function(err) {
-        for (test in self.testsList) {
-            if (!(test in self.testHash)) {
-                // construct resultObj
-                var resultObj = {test: test, score: Infinity, commitIndex: -1};
-                self.testArr.push(resultObj);
-                self.testHash.push(test)
-            }
-        }
-        
-        // sort testArr by score
-        self.testArr.sort(function(a,b) {
-            return b.score - a.score;
-        });
-    });
+  getCommits = getCommits.bind(this);
+  getTests = getTests.bind(this);
+  initTestPQ = initTestPQ.bind(this);
+  async.waterfall([getCommits, getTests, initTestPQ], function(err) {
+      for (test in self.testsList) {
+          if (!(test in self.testHash)) {
+              // construct resultObj
+              var resultObj = {test: test, score: Infinity, commitIndex: -1};
+              self.testArr.push(resultObj);
+              self.testHash.push(test)
+          }
+      }
+      
+      // sort testArr by score
+      self.testArr.sort(function(a,b) {
+          return b.score - a.score;
+      });
+  });
 
   //this.client.on('log', function(level, message) {
   //  console.log('log event: %s -- %j', level, message);
@@ -81,12 +81,12 @@ function getCommits(cb) {
 			}
 		};
 
-    queryCB.bind(this);
+  queryCB.bind(this);
 	var args = [];
 
 	// get commits to tids
 	var cql = 'select * from commits_to_tid;\n';
-
+  
 	this.client.execute(cql, args, this.consistencies.write, queryCB);
 }
 
@@ -124,9 +124,9 @@ function initTestPQ(commitIndex, numTestsLeft, cb) {
 				for (result in results) {
 					if (!(result.test in this.testHash)) {
 						// construct resultObj
-                        var resultObj = {test: test, score: score, commitIndex: commitIndex};
+            var resultObj = {test: test, score: score, commitIndex: commitIndex};
 						this.testArr.push(resultObj);
-                        this.testHash.push(result.test)
+            this.testHash.push(result.test)
 						numTestsLeft--;
 					}
 				}
@@ -140,7 +140,7 @@ function initTestPQ(commitIndex, numTestsLeft, cb) {
 
     queryCB.bind(this);
 
-	var lastCommit = this.commits[commitIndex].hash;
+	  var lastCommit = this.commits[commitIndex].hash;
     var args = [lastCommit];
 
 	var cql = 'select (test, score, commit) from test_by_score where commit = ?';
@@ -258,8 +258,7 @@ CassandraBackend.prototype.addResult = function(test, commit, result, cb) {
 	// Simple revison table insertion only for now
 	var cql = 'BEGIN BATCH ',
 		args = [],
-
-	var score = statsScore(skipCount, failCount, errorCount);
+    score = statsScore(skipCount, failCount, errorCount);
 
 	// Insert into results
 	cql += 'insert into results (test, tid, result)' +
@@ -278,7 +277,7 @@ CassandraBackend.prototype.addResult = function(test, commit, result, cb) {
 		args = args.concat([
 				commit,
 				score,
-				test;
+				test
 			]);
 
 		// Update scores in memory;

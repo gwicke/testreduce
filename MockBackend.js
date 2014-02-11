@@ -3,11 +3,12 @@ var util = require('util'),
   cass = require('node-cassandra-cql'),
   consistencies = cass.types.consistencies,
   uuid = require('node-uuid'),
+  mock = require('./mockdata'),
   async = require('async');
 
 
 // Constructor
-function CassandraBackend(name, config, callback) {
+function MockBackend(name, config, callback) {
   var self = this;
 
   this.name = name;
@@ -157,7 +158,7 @@ function initTestPQ(commitIndex, numTestsLeft, cb) {
  * }
  * @param cb function (err, num) - num is the number of regressions for the last commit
  */
-CassandraBackend.prototype.getNumRegressions = function (commit, cb) {
+MockBackend.prototype.getNumRegressions = function (commit, cb) {
   var fakeNum = 3;
   cb(null, fakeNum);
 };
@@ -174,7 +175,7 @@ CassandraBackend.prototype.getNumRegressions = function (commit, cb) {
  * @param cb function (err, test) with test being an object that serializes to
  * JSON, for example [ 'enwiki', 'some title', 12345 ]
  */
-CassandraBackend.prototype.getTest = function (commit, cb) {
+MockBackend.prototype.getTest = function (commit, cb) {
 
     /*
 	// check running queue for any timed out tests.
@@ -205,7 +206,7 @@ CassandraBackend.prototype.getTest = function (commit, cb) {
  * @param cb- (err, result), result is defined below
  *
  */
-CassandraBackend.prototype.getStatistics = function(cb) {
+MockBackend.prototype.getStatistics = function(cb) {
 
     /**
      * @param results 
@@ -246,7 +247,7 @@ CassandraBackend.prototype.getStatistics = function(cb) {
  * @param result string (JUnit XML typically)
  * @param cb callback (err) err or null
  */
-CassandraBackend.prototype.addResult = function(test, commit, result, cb) {
+MockBackend.prototype.addResult = function(test, commit, result, cb) {
 	var tid = commit.timestamp; // fix 
 
 	var skipCount = result.match( /<skipped/g ),
@@ -303,7 +304,7 @@ var statsScore = function(skipCount, failCount, errorCount) {
  * @param cb
  *
  */
-CassandraBackend.prototype.getFails = function(offset, limit, cb) {
+MockBackend.prototype.getFails = function(offset, limit, cb) {
 
     /**
      * cb
@@ -324,5 +325,5 @@ CassandraBackend.prototype.getFails = function(offset, limit, cb) {
 }
 
 // Node.js module exports. This defines what
-// require('./CassandraBackend.js'); evaluates to.
-module.exports = CassandraBackend;
+// require('./MockBackend.js'); evaluates to.
+module.exports = MockBackend;

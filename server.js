@@ -5,6 +5,7 @@
 var express = require( 'express' ),
 	optimist = require( 'optimist' ),
 	hbs = require( 'handlebars' ),
+	MockBackend      = require('./MockBackend'),
 	CassandraBackend = require('./CassandraBackend');
 
 // Default options
@@ -137,16 +138,30 @@ var setups = {};
 setups.cassandra = function(name, options, cb) {
 	return new CassandraBackend(name, options, cb);
 };
+setups.mock = function(name, options, cb) {
+	return new MockBackend(name, options, cb);
+};
 
-var handlers = {};
+var handlers = {
+   cass: {},
+   mock: {}
+};
 
 /*this rigs the handler to return the backend from CassandraBackend*/
-handlers = setups[settings.backend.type]("", settings, function(err) {
+handlers.cass = setups[settings.backend.type]("", settings, function(err) {
 	if(err) {
-		console.error("Backend not working??");
+		console.error("CassandraBackend not working??");
 		process.exit(1);
 	}
-})
+});
+
+/*this rigs the handler to return the mockbackend from MockBackend*/
+handlers.mock = setups[settings.backend.type]("", settings, function(err) {
+	if(err) {
+		console.error("MockBackend not working??");
+		process.exit(1);
+	}
+});
 
 /*BEGIN: COORD APP*/
 var getTitle = function ( req, res ) {

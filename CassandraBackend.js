@@ -231,7 +231,7 @@ CassandraBackend.prototype.getStatistics = function(cb) {
      *   }
      * 
      */
-    var results = mock;
+    var results = {};
     cb(null, results);
 }
 

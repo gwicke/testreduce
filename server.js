@@ -3,6 +3,9 @@
 "use strict";
 
 var express = require( 'express' ),
+	hbs = require( 'handlebars' ),
+	MockBackend      = require('./MockBackend'),
+	CassandraBackend = require('./CassandraBackend'),
     optimist = require( 'optimist' ),
     hbs = require( 'handlebars' );
 
@@ -140,6 +143,37 @@ function populateKnownCommits( commitTable ) {
     //Logic to populate knownCommits table goes here
 }
 
+
+var setups = {};
+setups.cassandra = function(name, options, cb) {
+	return new CassandraBackend(name, options, cb);
+};
+setups.mock = function(name, options, cb) {
+	return new MockBackend(name, options, cb);
+};
+
+var handlers = {
+   cass: {},
+   mock: {}
+};
+
+/*this rigs the handler to return the backend from CassandraBackend*/
+handlers.cass = setups[settings.backend.type]("", settings, function(err) {
+	if(err) {
+		console.error("CassandraBackend not working??");
+		process.exit(1);
+	}
+});
+
+/*this rigs the handler to return the mockbackend from MockBackend*/
+handlers.mock = setups.mock("", settings, function(err) {
+	if(err) {
+		console.error("MockBackend not working??");
+		process.exit(1);
+	}
+});
+
+/*BEGIN: COORD APP*/
 /**
  * Needs to be hooked up to backend.
  */
@@ -175,11 +209,86 @@ var getTitle = function ( req, res ) {
 var receiveResults = function ( req, res ) {
     res.end( 'receive results not implemented yet' );
 };
+/*END: COORD APP*/
+
+var indexLinkList = function () {
+	return '<p>More details:</p>\n<ul>' +
+		'<li><a href="/topfails">Results by title</a></li>\n' +
+		'<li><a href="/failedFetches">Non-existing test pages</a></li>\n' +
+		'<li><a href="/failsDistr">Histogram of failures</a></li>\n' +
+		'<li><a href="/skipsDistr">Histogram of skips</a></li>\n' +
+		'<li><a href="/commits">List of all tested commits</a></li>\n' +
+		'<li><a href="/perfstats">Performance stats of last commit</a></li>\n' +
+		'</ul>';
+};
 
 var statsWebInterface = function ( req, res ) {
-    res.write('<html><body>\n');
-    res.write('Stats web interface goes here');
-    res.end('</body></html>');
+	var displayRow = function( res, label, val ) {
+	  // round numeric data, but ignore others
+	  if( !isNaN( Math.round( val * 100 ) / 100 ) ) {
+	    val = Math.round( val * 100 ) / 100;
+	  }
+	  res.write( '<tr style="font-weight:bold"><td style="padding-left:20px;">' + label );
+	  res.write( '</td><td style="padding-left:20px; text-align:right">' + val + '</td></tr>' );
+	};
+	handlers.mock.getStatistics(function(err, result) {
+	  var tests = result.tests;
+	  var errorLess = result.noerrors;
+	  var skipLess = result.noskips;
+	  var failLess  = result.nofails;
+
+	  var noErrors = Math.round( 100 * 100 * errorLess / ( tests || 1 ) ) / 100,
+		  perfects = Math.round( 100* 100 * skipLess / ( tests || 1 ) ) / 100,
+		  syntacticDiffs = Math.round( 100 * 100 *
+				( failLess / ( tests || 1 ) ) ) / 100;
+	  res.write('<html><body>\n');
+	  res.write('<p>We have run roundtrip-tests on ' + tests + ' articles, of which' + ' </p>')
+	  res.write('<ul>');
+
+      res.write('<li>' + noErrors + '% parsed without errors</li>');
+      res.write('<li>' + syntacticDiffs + '% round-tripped without semantic differenes, and</li>' );
+      res.write('<li>' + perfects + '% round-tripped with no character differences at all </li>')
+
+	  res.write('</ul>');
+
+	  var width = 800;
+
+	  res.write( '<table><tr height=60px>');
+	  res.write( '<td width=' + ( width * perfects / 100 || 0 ) +
+				 'px style="background:green" title="Perfect / no diffs"></td>' );
+	  res.write( '<td width=' + ( width * ( syntacticDiffs - perfects ) / 100 || 0 ) +
+				 'px style="background:yellow" title="Syntactic diffs"></td>' );
+	  res.write( '<td width=' + ( width * ( 100 - syntacticDiffs ) / 100 || 0 ) +
+				 'px style="background:red" title="Semantic diffs"></td>' );
+	  res.write( '</tr></table>' );
+
+	  res.write( '<p>Latest revision:' );
+	  res.write( '<table><tbody>');
+
+	  displayRow(res, "Git SHA1", result.latestcommit);
+	  displayRow(res, "Test Results", tests);
+	  displayRow( res, "Crashers",
+	           '<a href="/crashers">' + result.crashes + '</a>' );
+	  displayRow(res, "Regressions",
+	           '<a href="/regressions/between/' + result.latestcommit + '/' +
+	           result.beforelatestcommit + '">' +
+	           result.regressions + '</a>');
+	  displayRow(res, "Fixes",
+	           '<a href="/topfixes/between/' + result.latestcommit + '/' +
+	           result.beforelatestcommit + '">' +
+	           result.fixes + '</a>');
+	  res.write( '</tbody></table></p>' );
+
+	  res.write( '<p>Averages (over the latest results):' );
+	  res.write( '<table><tbody>');
+	  // displayRow(res, "Errors", result.averages.errors);
+	  // displayRow(res, "Fails", result.averages.fails);
+	  // displayRow(res, "Skips", result.averages.skips);
+	  // displayRow(res, "Score", result.averages.scores);
+	  res.write( '</tbody></table></p>' );
+	  res.write( indexLinkList() );
+	  res.end('</body></html>');
+    });
 };
 
 var failsWebInterface = function ( req, res ) {
@@ -261,9 +370,19 @@ var GET_skipsDistr = function( req, res ) {
 };
 
 var GET_regressions = function( req, res ) {
-    res.write('<html><body>\n');
-    res.write('Regressions page goes here');
-    res.end('</body></html>');
+    var commit1 = req.params[0];
+    var commit2 = req.params[1];
+
+	var urlPrefix = "/regressions/between/" + r1 + "/" + r2;
+	page = (req.params[2] || 0) - 0;
+	offset = page * 40;
+
+    //use cassandra function to retrieve to commits
+
+
+	res.write('<html><body>\n');
+	res.write('Regressions page goes here');
+	res.end('</body></html>');
 };
 
 var GET_topfixes = function( req, res ) {
@@ -359,6 +478,7 @@ app.use( '/commits', GET_commits );
 app.use( '/static', express.static( __dirname + '/static' ) );
 
 // Clients will GET this path if they want to run a test
+//
 coordApp.get( /^\/title$/, getTitle );
 
 // Receive results from clients

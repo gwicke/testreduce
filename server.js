@@ -198,9 +198,10 @@ var getTitle = function ( req, res ) {
 
     var fetchCb = function(err, page) {
         // 404 and 426 handling will need to be handled based upon backend return value
-        if ( !err )
+        if ( !err ) {
             console.log( ' ->', page );
             res.send( page, 200 );
+        }
     };
 
     store.getTest(commitHash, fetchCb);

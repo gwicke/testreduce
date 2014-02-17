@@ -22,8 +22,9 @@ CREATE TABLE IF NOT EXISTS test_by_score (
 
 -- List of tests
 CREATE TABLE IF NOT EXISTS tests (
-    test blob,
-    PRIMARY KEY (test)
+    prefix text,
+    title text,
+    PRIMARY KEY (title)
 );
 
 -- Store all of our commits with their associated timestamps.
@@ -43,3 +44,4 @@ CREATE TABLE IF NOT EXISTS pages (
     claim_num_tries int,
     PRIMARY KEY(title, prefix)
 );
+

@@ -38,25 +38,20 @@ function CassandraBackend(name, config, callback) {
 
     // Queues that we use for
     self.runningQueue = new Array();
-    self.testQueue = new Array();
 
 
-    self.testArr = [];
-    self.pq = new PriorityQueue( function(a, b) { return a.score - b.score; } );
+    self.testQueue = new PriorityQueue( function(a, b) { return a.score - b.score; } );
     self.testsList = {};
-    self.testHash = {};
 
     // Load all the tests from Cassandra - do this when we see a new commit hash
-    async.waterfall([getCommits.bind(this), getTests.bind(this), initTestPQ.bind(this)], function(err) {
+    async.waterfall([getCommits.bind( this ), getTests.bind( this ), initTestPQ.bind( this )], function(err) {
         if (err) {
             console.log( 'failure in setup', err );
         }
-        console.log( 'setup complete' );
+        console.log( 'in memory queue setup complete' );
+        console.log(self.testQueue.peek());
     });
 
-    //this.client.on('log', function(level, message) {
-    //  console.log('log event: %s -- %j', level, message);
-    //});
     callback();
 }
 
@@ -119,7 +114,7 @@ function initTestPQ(commitIndex, numTestsLeft, cb) {
         } else {
             for (var i = 0; i < results.rows.length; i++) {
                 var result = results.rows[i];
-                this.pq.enq( { test: result[0].toString(), score: result[1], commit: result[2].toString() } );
+                this.testQueue.enq( { test: result[0].toString(), score: result[1], commit: result[2].toString() } );
             }
 
             if (numTestsLeft == 0 || this.commits[commitIndex].isSnapshot) {

@@ -3,6 +3,7 @@ var util = require('util'),
   cass = require('node-cassandra-cql'),
   consistencies = cass.types.consistencies,
   uuid = require('node-uuid'),
+  PriorityQueue = require('priorityqueuejs'),
   async = require('async');
 
 
@@ -33,32 +34,24 @@ function CassandraBackend(name, config, callback) {
 
     var numFailures = config.numFailures;
 
+    self.commits = [];
+
     // Queues that we use for
     self.runningQueue = new Array();
     self.testQueue = new Array();
 
+
     self.testArr = [];
-    self.testsList = [];
+    self.pq = new PriorityQueue( function(a, b) { return a.score - b.score; } );
+    self.testsList = {};
     self.testHash = {};
 
     // Load all the tests from Cassandra - do this when we see a new commit hash
-    getCommits = getCommits.bind(this);
-    getTests = getTests.bind(this);
-    initTestPQ = initTestPQ.bind(this);
-    async.waterfall([getCommits, getTests, initTestPQ], function(err) {
-        for (test in self.testsList) {
-            if (!(test in self.testHash)) {
-                // construct resultObj
-                var resultObj = {test: test, score: Infinity, commitIndex: -1};
-                self.testArr.push(resultObj);
-                self.testHash.push(test);
-            }
+    async.waterfall([getCommits.bind(this), getTests.bind(this), initTestPQ.bind(this)], function(err) {
+        if (err) {
+            console.log( 'failure in setup', err );
         }
-
-        // sort testArr by score
-        self.testArr.sort(function(a,b) {
-            return b.score - a.score;
-        });
+        console.log( 'setup complete' );
     });
 
     //this.client.on('log', function(level, message) {
@@ -69,60 +62,54 @@ function CassandraBackend(name, config, callback) {
 
 // cb is getTests
 function getCommits(cb) {
-    console.log('in get commits');
     var queryCB = function (err, results) {
         if (err) {
-            console.log(err);
-            console.log('in error get commits');
             cb(err);
         } else if (!results || !results.rows) {
-            this.commits = [];
+            console.log( 'no seen commits, error in database' );
             cb(null);
         } else {
-            console.log(results.rows[0][0].toString());
-            this.commits = results.rows;
+            for (var i = 0; i < results.rows.length; i++) {
+                var commit = results.rows[i];
+                // commits are currently saved as blobs, we shouldn't call toString on them...
+                // commit[0].toString()
+                this.commits.push( { hash: commit[0], timestamp: commit[1], keyframe: commit[2] } );
+            }
             cb(null);
         }
     };
 
-    queryCB.bind(this);
-    var args = [];
-
     // get commits to tids
-    var cql = 'select * from commits\n';
-    this.client.execute(cql, args, this.consistencies.write, queryCB);
+    var cql = 'select hash, tid, keyframe from commits\n';
+    this.client.execute(cql, [], this.consistencies.write, queryCB.bind(this));
 }
 
 // cb is initTestPQ
 function getTests(cb) {
-    console.log('in get tests');
     var queryCB = function (err, results) {
         if (err) {
-            console.log('in error get tests');
             cb(err);
         } else if (!results || !results.rows) {
-            this.testsList = [];
+            console.log( 'no seen commits, error in database' );
             cb(null, 0, 0);
         } else {
-            console.log(results);
-            console.log('fail!');
-            this.testsList = results.rows;
+            // I'm not sure we need to have this, but it exists for now till we decide not to have it.
+            for (var i = 0; i < results.rows.length; i++) {
+                test = results.rows[i];
+                this.testsList[[test[0], test[1]].join(':')] = true;
+            }
             cb(null, 0, results.rows.length);
         }
     };
 
-    queryCB.bind(this);
-    var args = [];
-
     // get tests
-    var cql = 'select * from tests;\n';
+    var cql = 'select prefix, title from tests;\n';
 
     // And finish it off
-    this.client.execute(cql, args, this.consistencies.write, queryCB);
+    this.client.execute(cql, [], this.consistencies.write, queryCB.bind( this ));
 }
 
 function initTestPQ(commitIndex, numTestsLeft, cb) {
-    console.log('in init test pq');
     var queryCB = function (err, results) {
         if (err) {
             console.log('in error init test PQ');
@@ -130,30 +117,27 @@ function initTestPQ(commitIndex, numTestsLeft, cb) {
         } else if (!results || !results.rows || results.rows.length === 0) {
             cb(null);
         } else {
-            for (result in results) {
-                if (!(result.test in this.testHash)) {
-                    // construct resultObj
-                    var resultObj = {test: test, score: score, commitIndex: commitIndex};
-                    this.testArr.push(resultObj);
-                    this.testHash.push(result.test)
-                    numTestsLeft--;
-                }
+            for (var i = 0; i < results.rows.length; i++) {
+                var result = results.rows[i];
+                this.pq.enq( { test: result[0].toString(), score: result[1], commit: result[2].toString() } );
             }
+
             if (numTestsLeft == 0 || this.commits[commitIndex].isSnapshot) {
                 cb(null);
             }
-            initTestPQ(commitIndex+1, numTestsLeft, cb);
+
+            if (numTestsLeft - results.rows.length > 0) {
+                var redo = initTestPQ.bind( this );
+                redo( commitIndex + 1, numTestsLeft - results.rows.length, cb).bind( this );
+            }
+            cb(null);
         }
     };
 
-    queryCB.bind(this);
-
     var lastCommit = this.commits[commitIndex].hash;
-    var args = [lastCommit];
+    var cql = 'select test, score, commit from test_by_score where commit = ?';
 
-    var cql = 'select (test, score, commit) from test_by_score where commit = ?';
-
-    this.client.execute(cql, args, this.consistencies.write, queryCB);
+    this.client.execute(cql, [lastCommit], this.consistencies.write, queryCB.bind( this ));
 }
 
 /**
@@ -204,7 +188,6 @@ CassandraBackend.prototype.getTest = function (commit, cb) {
 	// push test into running queue
 	// increment tries, return test;
     */
-    console.log('in getTest');
     console.log(this.commits);
 	cb([ 'enwiki', 'some title', 12345 ]);
 };

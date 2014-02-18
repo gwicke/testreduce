@@ -98,7 +98,7 @@ function getTests(cb) {
     };
 
     // get tests
-    var cql = 'select prefix, title from tests;\n';
+    var cql = 'select prefix, title from tests;';
 
     // And finish it off
     this.client.execute(cql, [], this.consistencies.write, queryCB.bind( this ));

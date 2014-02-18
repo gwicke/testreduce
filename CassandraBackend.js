@@ -75,7 +75,7 @@ function getCommits(cb) {
     };
 
     // get commits to tids
-    var cql = 'select hash, tid, keyframe from commits\n';
+    var cql = 'select hash, tid, keyframe from commits';
     this.client.execute(cql, [], this.consistencies.write, queryCB.bind(this));
 }
 
@@ -90,15 +90,15 @@ function getTests(cb) {
         } else {
             // I'm not sure we need to have this, but it exists for now till we decide not to have it.
             for (var i = 0; i < results.rows.length; i++) {
-                test = results.rows[i];
-                this.testsList[[test[0], test[1]].join(':')] = true;
+                test = JSON.parse(results.rows[i]);
+                this.testsList[[test.title, test.prefix].join(':')] = true;
             }
             cb(null, 0, results.rows.length);
         }
     };
 
     // get tests
-    var cql = 'select prefix, title from tests;';
+    var cql = 'select test from tests;';
 
     // And finish it off
     this.client.execute(cql, [], this.consistencies.write, queryCB.bind( this ));

@@ -90,8 +90,7 @@ function getTests(cb) {
         } else {
             // I'm not sure we need to have this, but it exists for now till we decide not to have it.
             for (var i = 0; i < results.rows.length; i++) {
-                test = JSON.parse(results.rows[i]);
-                this.testsList[[test.title, test.prefix].join(':')] = true;
+                this.testsList[results.rows[i]] = true;
             }
             cb(null, 0, results.rows.length);
         }

@@ -113,7 +113,7 @@ function initTestPQ(commitIndex, numTestsLeft, cb) {
         } else {
             for (var i = 0; i < results.rows.length; i++) {
                 var result = results.rows[i];
-                this.testQueue.enq( { test: result[0].toString(), score: result[1], commit: result[2].toString() } );
+                this.testQueue.enq( { test: result[0], score: result[1], commit: result[2].toString() } );
             }
 
             if (numTestsLeft == 0 || this.commits[commitIndex].isSnapshot) {

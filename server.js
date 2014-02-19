@@ -369,26 +369,70 @@ var GET_skipsDistr = function( req, res ) {
     res.end('</body></html>');
 };
 
+var regressionsHeaderData = ['Title', 'New Commit', 'Errors|Fails|Skips', 'Old Commit', 'Errors|Fails|Skips'];
+
 var GET_regressions = function( req, res ) {
-    var commit1 = req.params[0];
-    var commit2 = req.params[1];
+    var r1 = req.params[0];
+    var r2 = req.params[1];
 
 	var urlPrefix = "/regressions/between/" + r1 + "/" + r2;
-	page = (req.params[2] || 0) - 0;
-	offset = page * 40;
+	var page = (req.params[2] || 0) - 0;
+	var offset = page * 40;
 
-    //use cassandra function to retrieve to commits
+    /*put this in mock later */
 
+    handlers.mock.getRegressionRows(function(err, data) {
+      var rows = data.results;
 
-	res.write('<html><body>\n');
-	res.write('Regressions page goes here');
-	res.end('</body></html>');
+      var mydata = {
+        page: page,
+        urlPrefix: urlPrefix,
+        urlSuffix: '',
+        heading: "Total regressions between selected revisions: " + data.num, /*change this with mock's num regresssions*/
+        headingLink: {url: "/topfixes/between/" + r1 + "/" + r2, name: 'topfixes'},
+        header: regressionsHeaderData
+      };
+
+      for (var i = 0; i < rows.length; i++) {
+        rows[i].old_commit= r2;
+        rows[i].new_commit= r1;
+      }
+      // console.log("passing: " + JSON.stringify(rows, null ,'\t'));
+      displayPageList(res, mydata, makeRegressionRow, null, rows  );
+
+    });
 };
 
 var GET_topfixes = function( req, res ) {
-    res.write('<html><body>\n');
-    res.write('Top fixes goes here');
-    res.end('</body></html>');
+    var r1 = req.params[0];
+    var r2 = req.params[1];
+
+    var urlPrefix = "/topfixes/between/" + r1 + "/" + r2;
+    var page = (req.params[2] || 0) - 0;
+    var offset = page * 40;
+
+    /*put this in mock later */
+
+    handlers.mock.getFixesRows(function(err, data) {
+      var rows = data.results;
+
+      var mydata = {
+        page: page,
+        urlPrefix: urlPrefix,
+        urlSuffix: '',
+        heading: "Total fixes between selected revisions: " + data.num, /*change this with mock's num regresssions*/
+        headingLink: {url: '/regressions/between/' + r1 + '/' + r2, name: 'regressions'},
+        header: regressionsHeaderData
+      };
+
+      for (var i = 0; i < rows.length; i++) {
+        rows[i].old_commit= r2;
+        rows[i].new_commit= r1;
+      }
+      // console.log("passing: " + JSON.stringify(rows, null ,'\t'));
+      displayPageList(res, mydata, makeRegressionRow, null, rows  );
+
+    });
 };
 
 var GET_commits = function( req, res ) {
@@ -407,6 +451,88 @@ var GET_pagePerfStats = function( req, res ) {
     res.write('Performance results go here');
     res.end('</body></html>');
 };
+
+/* BEGIN- Helper functions for GET_regressions*/
+var displayPageList = function(res, data, makeRow, err, rows){
+    console.log( "GET " + data.urlPrefix + "/" + data.page + data.urlSuffix );
+    if ( err ) {
+        res.send( err.toString(), 500 );
+    } else if ( !rows || rows.length <= 0 ) {
+        res.send( "No entries found", 404 );
+    } else {
+        var tableRows = [];
+        for (var i = 0; i < rows.length; i++) {
+            var row = rows[i];
+            var tableRow = {status: pageStatus(row), tableData: makeRow(row)};
+            // console.log("table: " + JSON.stringify(tableRow, null, '\t'));
+            tableRows.push(tableRow);
+        }
+
+        var tableData = data;
+        tableData.paginate = true;
+        tableData.row = tableRows;
+        tableData.prev = data.page > 0;
+        tableData.next = rows.length === 40;
+
+        hbs.registerHelper('prevUrl', function (urlPrefix, urlSuffix, page) {
+            return urlPrefix + "/" + ( page - 1 ) + urlSuffix;
+        });
+        hbs.registerHelper('nextUrl', function (urlPrefix, urlSuffix, page) {
+            return urlPrefix + "/" + ( page + 1 ) + urlSuffix;
+        });
+
+        // console.log("JSON: " + JSON.stringify(tableData, null, '\t'));
+        res.render('table.html', tableData);
+    }
+};
+
+var makeRegressionRow = function(row) {
+    return [
+        pageTitleData(row),
+        commitLinkData(row.new_commit, row.title, row.prefix),
+        row.errors + "|" + row.fails + "|" + row.skips,
+        commitLinkData(row.old_commit, row.title, row.prefix),
+        row.old_errors + "|" + row.old_fails + "|" + row.old_skips
+    ];
+};
+
+var pageTitleData = function(row){
+    var prefix = encodeURIComponent( row.prefix ),
+    title = encodeURIComponent( row.title );
+    return {
+        title: row.prefix + ':' + row.title,
+        titleUrl: 'http://parsoid.wmflabs.org/_rt/' + prefix + '/' + title,
+        lh: 'http://localhost:8000/_rt/' + prefix + '/' + title,
+        latest: '/latestresult/' + prefix + '/' + title,
+        perf: '/pageperfstats/' + prefix + '/' + title
+    };
+};
+
+var pageStatus = function(row) {
+    var hasStatus = row.hasOwnProperty( 'skips' ) &&
+        row.hasOwnProperty( 'fails' ) &&
+        row.hasOwnProperty( 'errors' );
+
+    if (hasStatus) {
+        if ( row.skips === 0 && row.fails === 0 && row.errors === 0 ) {
+            return 'perfect';
+        } else if ( row.errors > 0 || row.fails > 0 ) {
+            return 'fail';
+        } else {
+            return 'skip';
+        }
+    }
+    return null;
+};
+
+var commitLinkData = function(commit, title, prefix) {
+    return {
+        url: '/result/' + commit + '/' + prefix + '/' + title,
+        name: commit.substr( 0, 7 )
+    };
+};
+/* End- Helper functions for GET_regressions*/
+
 
 // Make an app
 var app = express.createServer();

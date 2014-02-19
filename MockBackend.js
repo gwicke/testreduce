@@ -237,6 +237,22 @@ MockBackend.prototype.getStatistics = function(cb) {
 }
 
 /**
+ * getRegressionRows mock method returns the mock data of the fake regressions
+ */
+MockBackend.prototype.getRegressionRows = function(cb) {
+  var results = mock.regressions;
+  cb(null, results);
+}
+
+/**
+ * getRegressionRows mock method returns the mock data of the fake regressions
+ */
+MockBackend.prototype.getFixesRows = function(cb) {
+  var results = mock.fixes;
+  cb(null, results);
+}
+
+/**
  * Add a result to storage
  *
  * @param test string representing what test we're running

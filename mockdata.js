@@ -25,8 +25,50 @@ module.exports = {
     },
     
     crashes: 1,
-    regressions: 1,
-    fixes: 50
+    regressions: {
+        num: 1,
+        results: [ {
+          prefix: "enwiki",
+          title: "John rocks your sox",
+          errors: 2,
+          fails: 3,
+          skips: 2,
+          old_errors: 0,
+          old_fails: 0,
+          old_skips: 1
+        }, {
+          prefix: "enwiki",
+          title: "Sox rocks John",
+          errors: 0,
+          fails: 0,
+          skips: 100,
+          old_errors: 0,
+          old_fails: 0,
+          old_skips: 0
+        }]
+    },
+    fixes: {
+        num: 1,
+        results: [{
+          prefix: "enwiki",
+          title: "Javascript: All day Err day",
+          errors: 0,
+          fails: 0,
+          skips: 0,
+          old_errors: 5,
+          old_skips: 10,
+          old_fails: 15
+        }, {
+          prefix: "enwiki",
+          title: "Cassandra owns MySQL",
+          errors: 0,
+          fails: 0,
+          skips: 1,
+          old_errors: 0,
+          old_fails: 2,
+          old_skips: 1 
+        }]
+    }
 };
 
 

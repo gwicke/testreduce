@@ -68,7 +68,7 @@ function getCommits(cb) {
                 var commit = results.rows[i];
                 // commits are currently saved as blobs, we shouldn't call toString on them...
                 // commit[0].toString()
-                this.commits.push( { hash: commit[0], timestamp: commit[1], keyframe: commit[2] } );
+                this.commits.push( { hash: commit[0], timestamp: commit[1], isKeyframe: commit[2] } );
             }
             cb(null);
         }

@@ -138,12 +138,6 @@ var fetchedPages = [];
 var lastFetchedCommit = null;
 var lastFetchedDate = new Date(0);
 
-// backend store needed to populate commit table?
-function populateKnownCommits( commitTable ) {
-    //Logic to populate knownCommits table goes here
-}
-
-
 var setups = {};
 setups.cassandra = function(name, options, cb) {
 	return new CassandraBackend(name, options, cb);
@@ -174,6 +168,13 @@ handlers.mock = setups.mock("", settings, function(err) {
 });
 
 /*BEGIN: COORD APP*/
+
+// // backend store needed to populate commit table?
+// function populateKnownCommits( store, commitTable ) {
+//     store.getCommits(null);
+//     //Logic to populate knownCommits table goes here
+// }
+
 /**
  * Needs to be hooked up to backend.
  */
@@ -182,25 +183,26 @@ var getTitle = function ( req, res ) {
     var commitDate = new Date( req.query.ctime );
     var knownCommit = knownCommits && knownCommits[ commitHash ];
     // init backend store reference here?
-    var store;
+    var store = handlers.cass;
 
     res.setHeader( 'Content-Type', 'text/plain; charset=UTF-8' );
 
-    if ( !knownCommit ) {
-        console.log( 'Unknown commit requested' );
-        // Maybe populate known commit table at startup?
-        // Empty commit table case handled by getTitle in current implementation
-        if ( !knownCommits ) {
-            populateKnownCommits( knownCommits );
-        }
-        // Backend logic for handling unseen commits and lastFetchedCommit goes here
-    }
+    // if ( !knownCommit ) {
+    //     console.log( 'Unknown commit requested' );
+    //     // Maybe populate known commit table at startup?
+    //     // Empty commit table case handled by getTitle in current implementation
+    //     if ( !knownCommits ) {
+    //         populateKnownCommits( store, knownCommits );
+    //     }
+    //     // Backend logic for handling unseen commits and lastFetchedCommit goes here
+    // }
 
     var fetchCb = function(err, page) {
         // 404 and 426 handling will need to be handled based upon backend return value
-        if ( !err )
+        if ( !err ) {
             console.log( ' ->', page );
             res.send( page, 200 );
+        }
     };
 
     store.getTest(commitHash, fetchCb);

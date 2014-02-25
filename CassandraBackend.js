@@ -49,7 +49,9 @@ function CassandraBackend(name, config, callback) {
             console.log( 'failure in setup', err );
         }
         console.log( 'in memory queue setup complete' );
-        console.log(self.testQueue.peek());
+        if (self.testQueue.length) {
+            console.log(self.testQueue.peek());
+        }
     });
 
     callback();
@@ -128,7 +130,11 @@ function initTestPQ(commitIndex, numTestsLeft, cb) {
         }
     };
 
-    var lastCommit = this.commits[commitIndex].hash;
+    var lastCommit = this.commits[commitIndex],
+        lastHash = lastCommit && lastCommit.hash || '';
+    if (!lastHash) {
+        cb(null);
+    }
     var cql = 'select test, score, commit from test_by_score where commit = ?';
 
     this.client.execute(cql, [lastCommit], this.consistencies.write, queryCB.bind( this ));
@@ -154,8 +160,8 @@ CassandraBackend.prototype.getNumRegressions = function (commit, cb) {
  * Get the next title to test
  *
  * @param commit object {
- *	hash: <git hash string>
- *	timestamp: <git commit timestamp date object>
+ * hash: <git hash string>
+ * timestamp: <git commit timestamp date object>
  * }
  * @param cb function (err, test) with test being an object that serializes to
  * JSON, for example [ 'enwiki', 'some title', 12345 ]
@@ -163,11 +169,11 @@ CassandraBackend.prototype.getNumRegressions = function (commit, cb) {
 CassandraBackend.prototype.getTest = function (commit, cb) {
 
     /*
-	// check running queue for any timed out tests.
+    // check running queue for any timed out tests.
     for (testObj in runningQueue) {
-        // if any timed out, 
+        // if any timed out,
         if (testObj timed out)  {
-            if (testObj.tries < threshold) { 
+            if (testObj.tries < threshold) {
                 // increment tries, return it;
                 testObj.tries++;
                 cb(null, testObj.test);
@@ -177,13 +183,13 @@ CassandraBackend.prototype.getTest = function (commit, cb) {
             }
         }
     }
-	
-	// pop test from test queue
-	// push test into running queue
-	// increment tries, return test;
+
+    // pop test from test queue
+    // push test into running queue
+    // increment tries, return test;
     */
     console.log(this.commits);
-	cb([ 'enwiki', 'some title', 12345 ]);
+    cb([ 'enwiki', 'some title', 12345 ]);
 };
 
 /**
@@ -195,7 +201,7 @@ CassandraBackend.prototype.getTest = function (commit, cb) {
 CassandraBackend.prototype.getStatistics = function(cb) {
 
     /**
-     * @param results 
+     * @param results
      *    object {
      *       tests: <test count>,
      *       noskips: <tests without skips>,
@@ -211,12 +217,12 @@ CassandraBackend.prototype.getStatistics = function(cb) {
      *           skips: <average num skips>,
      *           scores: <average num scores>
      *       },
-     *       
+     *
      *       crashes: <num crashes>,
      *       regressions: <num regressions>,
      *       fixes: <num fixes>
      *   }
-     * 
+     *
      */
     var results = {};
     cb(null, results);
@@ -227,59 +233,59 @@ CassandraBackend.prototype.getStatistics = function(cb) {
  *
  * @param test string representing what test we're running
  * @param commit object {
- *	hash: <git hash string>
- *	timestamp: <git commit timestamp date object>
+ *    hash: <git hash string>
+ *    timestamp: <git commit timestamp date object>
  * }
  * @param result string (JUnit XML typically)
  * @param cb callback (err) err or null
  */
 CassandraBackend.prototype.addResult = function(test, commit, result, cb) {
-	var tid = commit.timestamp; // fix 
+    var tid = commit.timestamp; // fix
 
-	var skipCount = result.match( /<skipped/g ),
-			failCount = result.match( /<failure/g ),
-			errorCount = result.match( /<error/g );
+    var skipCount = result.match( /<skipped/g ),
+            failCount = result.match( /<failure/g ),
+            errorCount = result.match( /<error/g );
 
-	// Build up the CQL
-	// Simple revison table insertion only for now
-	var cql = 'BEGIN BATCH ',
-		args = [],
+    // Build up the CQL
+    // Simple revison table insertion only for now
+    var cql = 'BEGIN BATCH ',
+        args = [],
     score = statsScore(skipCount, failCount, errorCount);
 
-	// Insert into results
-	cql += 'insert into results (test, tid, result)' +
-				'values(?, ?, ?);\n';
-	args = args.concat([
-			test,
-			tid,
-			result
-		]);
+    // Insert into results
+    cql += 'insert into results (test, tid, result)' +
+                'values(?, ?, ?);\n';
+    args = args.concat([
+            test,
+            tid,
+            result
+        ]);
 
-	// Check if test score changed
-	if (testScores[test] == score) {
-		// If changed, update test_by_score
-		cq += 'insert into test_by_score (commit, score, test)' +
-					'values(?, ?, ?);\n';
-		args = args.concat([
-				commit,
-				score,
-				test
-			]);
+    // Check if test score changed
+    if (testScores[test] == score) {
+        // If changed, update test_by_score
+        cq += 'insert into test_by_score (commit, score, test)' +
+                    'values(?, ?, ?);\n';
+        args = args.concat([
+                commit,
+                score,
+                test
+            ]);
 
-		// Update scores in memory;
-		testScores[test] = score;
-	}
-	// And finish it off
-	cql += 'APPLY BATCH;';
+        // Update scores in memory;
+        testScores[test] = score;
+    }
+    // And finish it off
+    cql += 'APPLY BATCH;';
 
-	this.client.execute(cql, args, this.consistencies.write, cb);
+    this.client.execute(cql, args, this.consistencies.write, cb);
 
 }
 
 var statsScore = function(skipCount, failCount, errorCount) {
-	// treat <errors,fails,skips> as digits in a base 1000 system
-	// and use the number as a score which can help sort in topfails.
-	return errorCount*1000000+failCount*1000+skipCount;
+    // treat <errors,fails,skips> as digits in a base 1000 system
+    // and use the number as a score which can help sort in topfails.
+    return errorCount*1000000+failCount*1000+skipCount;
 };
 
 /**

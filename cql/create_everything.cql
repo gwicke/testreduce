@@ -43,3 +43,4 @@ CREATE TABLE IF NOT EXISTS pages (
     claim_num_tries int,
     PRIMARY KEY(title, prefix)
 );
+

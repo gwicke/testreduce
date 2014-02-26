@@ -138,34 +138,29 @@ var fetchedPages = [];
 var lastFetchedCommit = null;
 var lastFetchedDate = new Date(0);
 
-var setups = {};
-setups.cassandra = function(name, options, cb) {
-	return new CassandraBackend(name, options, cb);
-};
-setups.mock = function(name, options, cb) {
-	return new MockBackend(name, options, cb);
-};
 
-var handlers = {
-   cass: {},
-   mock: {}
-};
+var backend = null;
 
-/*this rigs the handler to return the backend from CassandraBackend*/
-handlers.cass = setups[settings.backend.type]("", settings, function(err) {
-	if(err) {
-		console.error("CassandraBackend not working??");
-		process.exit(1);
-	}
-});
-
-/*this rigs the handler to return the mockbackend from MockBackend*/
-handlers.mock = setups.mock("", settings, function(err) {
-	if(err) {
-		console.error("MockBackend not working??");
-		process.exit(1);
-	}
-});
+if(settings.backend.type ==="cassandra") {
+  backend = new CassandraBackend("", settings, function(err) {
+     if(err) {
+        console.error("CassandraBackend not working??");
+        process.exit(1);
+     } else {
+        console.log("CassandraBackend Works");
+     }
+  });
+} else if(settings.backend.type ==="mock") {
+  backend = new MockBackend("", settings, function(err) {
+    if(err) {
+        console.error("MockBackend not working??");
+        process.exit(1);
+    }
+    else {
+        console.log("MockBackend Works");
+    }
+  });
+}
 
 /*BEGIN: COORD APP*/
 
@@ -183,7 +178,7 @@ var getTitle = function ( req, res ) {
     var commitDate = new Date( req.query.ctime );
     var knownCommit = knownCommits && knownCommits[ commitHash ];
     // init backend store reference here?
-    var store = handlers.cass;
+    var store = backend;
 
     res.setHeader( 'Content-Type', 'text/plain; charset=UTF-8' );
 
@@ -233,8 +228,8 @@ var statsWebInterface = function ( req, res ) {
 	  res.write( '<tr style="font-weight:bold"><td style="padding-left:20px;">' + label );
 	  res.write( '</td><td style="padding-left:20px; text-align:right">' + val + '</td></tr>' );
 	};
-	handlers.mock.getStatistics(function(err, result) {
-	  var tests = result.tests;
+	backend.getStatistics(function(err, result) {
+	  var tests = result.numtests;
 	  var errorLess = result.noerrors;
 	  var skipLess = result.noskips;
 	  var failLess  = result.nofails;
@@ -274,11 +269,11 @@ var statsWebInterface = function ( req, res ) {
 	  displayRow(res, "Regressions",
 	           '<a href="/regressions/between/' + result.latestcommit + '/' +
 	           result.beforelatestcommit + '">' +
-	           result.regressions + '</a>');
+	           result.numFixes + '</a>');
 	  displayRow(res, "Fixes",
 	           '<a href="/topfixes/between/' + result.latestcommit + '/' +
 	           result.beforelatestcommit + '">' +
-	           result.fixes + '</a>');
+	           result.numReg + '</a>');
 	  res.write( '</tbody></table></p>' );
 
 	  res.write( '<p>Averages (over the latest results):' );
@@ -296,7 +291,6 @@ var statsWebInterface = function ( req, res ) {
 var failsWebInterface = function ( req, res ) {
     var page = ( req.params[0] || 0 ) - 0,
         offset = page * 40;
-    var backend = new CassandraBackend();
 
     backend.getFails(offset, 40, function(results) {
         //   object {
@@ -371,7 +365,6 @@ var GET_skipsDistr = function( req, res ) {
     res.end('</body></html>');
 };
 
-var regressionsHeaderData = ['Title', 'New Commit', 'Errors|Fails|Skips', 'Old Commit', 'Errors|Fails|Skips'];
 
 var GET_regressions = function( req, res ) {
     var r1 = req.params[0];
@@ -383,24 +376,11 @@ var GET_regressions = function( req, res ) {
 
     /*put this in mock later */
 
-    handlers.mock.getRegressionRows(function(err, data) {
-      var rows = data.results;
+    backend.getRegressions(r1, r2, urlPrefix, page, function(err, data, info) {
+      var rows = data;
 
-      var mydata = {
-        page: page,
-        urlPrefix: urlPrefix,
-        urlSuffix: '',
-        heading: "Total regressions between selected revisions: " + data.num, /*change this with mock's num regresssions*/
-        headingLink: {url: "/topfixes/between/" + r1 + "/" + r2, name: 'topfixes'},
-        header: regressionsHeaderData
-      };
-
-      for (var i = 0; i < rows.length; i++) {
-        rows[i].old_commit= r2;
-        rows[i].new_commit= r1;
-      }
       // console.log("passing: " + JSON.stringify(rows, null ,'\t'));
-      displayPageList(res, mydata, makeRegressionRow, null, rows  );
+      displayPageList(res, info, makeRegressionRow, null, rows  );
 
     });
 };
@@ -415,24 +395,11 @@ var GET_topfixes = function( req, res ) {
 
     /*put this in mock later */
 
-    handlers.mock.getFixesRows(function(err, data) {
-      var rows = data.results;
+    backend.getFixes(r1, r2, urlPrefix, page, function(err, data, info) {
+      var rows = data;
 
-      var mydata = {
-        page: page,
-        urlPrefix: urlPrefix,
-        urlSuffix: '',
-        heading: "Total fixes between selected revisions: " + data.num, /*change this with mock's num regresssions*/
-        headingLink: {url: '/regressions/between/' + r1 + '/' + r2, name: 'regressions'},
-        header: regressionsHeaderData
-      };
-
-      for (var i = 0; i < rows.length; i++) {
-        rows[i].old_commit= r2;
-        rows[i].new_commit= r1;
-      }
       // console.log("passing: " + JSON.stringify(rows, null ,'\t'));
-      displayPageList(res, mydata, makeRegressionRow, null, rows  );
+      displayPageList(res, info, makeRegressionRow, null, rows  );
 
     });
 };

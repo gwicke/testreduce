@@ -7,9 +7,52 @@
  * $ node server.js --help
  * to view them.
  */
+/*This will mimic the test table in cassandra, containing 4 tests
+where 2 are regressions and 2 are fixes*/
+var tests = [{
+    prefix: "enwiki",
+    title: "John rocks your sox",
+    oldid: 12345,
+    errors: 2,
+    fails: 3,
+    skips: 2,
+    old_errors: 0,
+    old_fails: 0,
+    old_skips: 1
+}, {
+    prefix: "enwiki",
+    title: "Sox rocks John",
+    oldid: 54321,
+    errors: 0,
+    fails: 0,
+    skips: 100,
+    old_errors: 0,
+    old_fails: 0,
+    old_skips: 0
+}, {
+    prefix: "enwiki",
+    title: "Javascript: All day Err day",
+    oldid: 911,
+    errors: 0,
+    fails: 0,
+    skips: 0,
+    old_errors: 5,
+    old_skips: 10,
+    old_fails: 15
+}, {
+    prefix: "enwiki",
+    title: "Cassandra owns MySQL",
+    oldid: 119,
+    errors: 0,
+    fails: 0,
+    skips: 1,
+    old_errors: 0,
+    old_fails: 2,
+    old_skips: 1
+}];
 
 module.exports = {
-    tests: 159637,
+    numtests: 159637,
     noskips: 135388,
     nofails: 159158,
     noerrors: 159605,
@@ -23,13 +66,19 @@ module.exports = {
         skips: 0.5,
         scores: 150
     },
-    
+
     crashes: 1,
-    regressions: {
-        num: 1,
+
+    testdata: JSON.stringify(tests) 
+};
+
+
+/*regressions: {
+        num: 2,
         results: [ {
           prefix: "enwiki",
           title: "John rocks your sox",
+          oldid: 12345,
           errors: 2,
           fails: 3,
           skips: 2,
@@ -39,6 +88,7 @@ module.exports = {
         }, {
           prefix: "enwiki",
           title: "Sox rocks John",
+          oldid: 54321,
           errors: 0,
           fails: 0,
           skips: 100,
@@ -48,10 +98,11 @@ module.exports = {
         }]
     },
     fixes: {
-        num: 1,
+        num: 2,
         results: [{
           prefix: "enwiki",
           title: "Javascript: All day Err day",
+          oldid: 911,
           errors: 0,
           fails: 0,
           skips: 0,
@@ -61,6 +112,7 @@ module.exports = {
         }, {
           prefix: "enwiki",
           title: "Cassandra owns MySQL",
+          oldid: 119,
           errors: 0,
           fails: 0,
           skips: 1,
@@ -68,7 +120,4 @@ module.exports = {
           old_fails: 2,
           old_skips: 1 
         }]
-    }
-};
-
-
+    }*/

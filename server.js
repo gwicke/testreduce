@@ -169,15 +169,6 @@ handlers.mock = setups.mock("", settings, function(err) {
 
 /*BEGIN: COORD APP*/
 
-// // backend store needed to populate commit table?
-// function populateKnownCommits( store, commitTable ) {
-//     store.getCommits(null);
-//     //Logic to populate knownCommits table goes here
-// }
-
-/**
- * Needs to be hooked up to backend.
- */
 var getTitle = function ( req, res ) {
     var commitHash = req.query.commit;
     var commitDate = new Date( req.query.ctime );
@@ -207,8 +198,27 @@ var getTitle = function ( req, res ) {
     store.getTest(commitHash, fetchCb);
 };
 
+var parsePerfStats = function( text ) {
+    var regexp = /<perfstat[\s]+type="([\w\:]+)"[\s]*>([\d]+)/g;
+    var perfstats = [];
+    for ( var match = regexp.exec( text ); match !== null; match = regexp.exec( text ) ) {
+        perfstats.push( { type: match[ 1 ], value: match[ 2 ] } );
+    }
+    return perfstats;
+};
+
 var receiveResults = function ( req, res ) {
     var store = handlers.cass;
+    var title = req.params[ 0 ],
+        result = req.body.results,
+        skipCount = result.match( /<skipped/g ),
+        failCount = result.match( /<failure/g ),
+        errorCount = result.match( /<error/g );
+    var prefix = req.params[1];
+    var commitHash = req.body.commit;
+    var perfstats = parsePerfStats( result );
+    console.log(result);
+    console.log(perfstats);
     store.addResult('blah');
     res.end( 'receive results not implemented yet' );
 };

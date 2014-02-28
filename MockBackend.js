@@ -255,12 +255,12 @@ var statsScore = function(skip, fail, error) {
 This method calculates all the scores data from the tests table
 **/
 function calcRegressionFixes(cb) {
-  var data = JSON.parse(mock.testdata);
+  var data = mock.testdata;
 
   var regData = [];
   var fixData = [];
   for(var y in data) {
-    var x = data[y];
+    var x = JSON.parse(data[y]);
     var newtest = statsScore(x.skips, x.fails, x.errors);
     var oldtest = statsScore(x.old_skips, x.old_fails, x.old_errors);
 
@@ -409,59 +409,6 @@ MockBackend.prototype.getFails = function(offset, limit, cb) {
     cb([]);
 }
 
-/**
- * Add a result to storage
- *
- * @param test string representing what test we're running
- * @param commit object {
- *    hash: <git hash string>
- *    timestamp: <git commit timestamp date object>
- * }
- * @param result string (JUnit XML typically)
- * @param cb callback (err) err or null
- */
-MockBackend.prototype.addResult = function(test, commit, result, cb) {
-    var tid = commit.timestamp; // fix
-
-    var skipCount = result.match( /<skipped/g ),
-            failCount = result.match( /<failure/g ),
-            errorCount = result.match( /<error/g );
-
-    // Build up the CQL
-    // Simple revison table insertion only for now
-    var cql = 'BEGIN BATCH ',
-        args = [],
-    score = statsScore(skipCount, failCount, errorCount);
-
-    // Insert into results
-    cql += 'insert into results (test, tid, result)' +
-                'values(?, ?, ?);\n';
-    args = args.concat([
-            test,
-            tid,
-            result
-        ]);
-
-    // Check if test score changed
-    if (testScores[test] == score) {
-        // If changed, update test_by_score
-        cq += 'insert into test_by_score (commit, score, test)' +
-                    'values(?, ?, ?);\n';
-        args = args.concat([
-                commit,
-                score,
-                test
-            ]);
-
-        // Update scores in memory;
-        testScores[test] = score;
-    }
-    // And finish it off
-    cql += 'APPLY BATCH;';
-
-    this.client.execute(cql, args, this.consistencies.write, cb);
-
-}
 
 // Node.js module exports. This defines what
 // require('./MockBackend.js'); evaluates to.

@@ -1,5 +1,5 @@
-/*
- * This is a sample configuration file.
+
+ /* This is a sample configuration file.
  * Copy this file to server.settings.js and edit that file to fit your
  * Cassandra connection and other settings.
  *
@@ -51,6 +51,12 @@ var tests = [{
     old_skips: 1
 }];
 
+var string_tests = [];
+for(var i in tests) {
+  string_tests.push(JSON.stringify(tests[i]));
+}
+// console.log(JSON.stringify(string_tests, null,'\t'));
+
 module.exports = {
     numtests: 159637,
     noskips: 135388,
@@ -69,55 +75,6 @@ module.exports = {
 
     crashes: 1,
 
-    testdata: JSON.stringify(tests) 
+    testdata: string_tests
 };
 
-
-/*regressions: {
-        num: 2,
-        results: [ {
-          prefix: "enwiki",
-          title: "John rocks your sox",
-          oldid: 12345,
-          errors: 2,
-          fails: 3,
-          skips: 2,
-          old_errors: 0,
-          old_fails: 0,
-          old_skips: 1
-        }, {
-          prefix: "enwiki",
-          title: "Sox rocks John",
-          oldid: 54321,
-          errors: 0,
-          fails: 0,
-          skips: 100,
-          old_errors: 0,
-          old_fails: 0,
-          old_skips: 0
-        }]
-    },
-    fixes: {
-        num: 2,
-        results: [{
-          prefix: "enwiki",
-          title: "Javascript: All day Err day",
-          oldid: 911,
-          errors: 0,
-          fails: 0,
-          skips: 0,
-          old_errors: 5,
-          old_skips: 10,
-          old_fails: 15
-        }, {
-          prefix: "enwiki",
-          title: "Cassandra owns MySQL",
-          oldid: 119,
-          errors: 0,
-          fails: 0,
-          skips: 1,
-          old_errors: 0,
-          old_fails: 2,
-          old_skips: 1 
-        }]
-    }*/

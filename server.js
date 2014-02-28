@@ -466,10 +466,11 @@ var makeRegressionRow = function(row) {
 };
 
 var pageTitleData = function(row){
-    var prefix = encodeURIComponent( row.prefix ),
-    title = encodeURIComponent( row.title );
+    var parsed = JSON.parse(row.test);
+    var prefix = encodeURIComponent( parsed.prefix ),
+    title = encodeURIComponent( parsed.title );
     return {
-        title: row.prefix + ':' + row.title,
+        title: parsed.prefix + ':' + parsed.title,
         titleUrl: 'http://parsoid.wmflabs.org/_rt/' + prefix + '/' + title,
         lh: 'http://localhost:8000/_rt/' + prefix + '/' + title,
         latest: '/latestresult/' + prefix + '/' + title,

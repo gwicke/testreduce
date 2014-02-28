@@ -9,10 +9,8 @@
  */
 /*This will mimic the test table in cassandra, containing 4 tests
 where 2 are regressions and 2 are fixes*/
-var tests = [{
-    prefix: "enwiki",
-    title: "John rocks your sox",
-    oldid: 12345,
+var result = [{
+    test: '{"prefix":"enwiki","title":"John rocks your sox","oldid":12345}', 
     errors: 2,
     fails: 3,
     skips: 2,
@@ -20,9 +18,7 @@ var tests = [{
     old_fails: 0,
     old_skips: 1
 }, {
-    prefix: "enwiki",
-    title: "Sox rocks John",
-    oldid: 54321,
+    test:  '{"prefix":"enwiki","title":"Sox rocks John","oldid":54321}',
     errors: 0,
     fails: 0,
     skips: 100,
@@ -30,9 +26,7 @@ var tests = [{
     old_fails: 0,
     old_skips: 0
 }, {
-    prefix: "enwiki",
-    title: "Javascript: All day Err day",
-    oldid: 911,
+    test: '{"prefix":"enwiki","title":"Javascript: All day Err day","oldid":911}',
     errors: 0,
     fails: 0,
     skips: 0,
@@ -40,9 +34,7 @@ var tests = [{
     old_skips: 10,
     old_fails: 15
 }, {
-    prefix: "enwiki",
-    title: "Cassandra owns MySQL",
-    oldid: 119,
+    test: '{"prefix":"enwiki","title":"Cassandra owns MySQL","oldid":119}',
     errors: 0,
     fails: 0,
     skips: 1,
@@ -51,11 +43,6 @@ var tests = [{
     old_skips: 1
 }];
 
-var string_tests = [];
-for(var i in tests) {
-  string_tests.push(JSON.stringify(tests[i]));
-}
-// console.log(JSON.stringify(string_tests, null,'\t'));
 
 module.exports = {
     numtests: 159637,
@@ -75,6 +62,6 @@ module.exports = {
 
     crashes: 1,
 
-    testdata: string_tests
+    testdata: result
 };
 

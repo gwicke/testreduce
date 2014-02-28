@@ -260,7 +260,7 @@ function calcRegressionFixes(cb) {
   var regData = [];
   var fixData = [];
   for(var y in data) {
-    var x = JSON.parse(data[y]);
+    var x = data[y];
     var newtest = statsScore(x.skips, x.fails, x.errors);
     var oldtest = statsScore(x.old_skips, x.old_fails, x.old_errors);
 

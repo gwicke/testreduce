@@ -49,9 +49,6 @@ function CassandraBackend(name, config, callback) {
             console.log( 'failure in setup', err );
         }
         console.log( 'in memory queue setup complete' );
-        if (self.testQueue.size()) {
-//            console.log(self.testQueue.peek());
-        }
     });
 
     callback();

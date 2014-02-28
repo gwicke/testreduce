@@ -36,12 +36,9 @@ function CassandraBackend(name, config, callback) {
 
     self.commits = [];
 
-    // Queues that we use for
-    self.runningQueue = new Array();
-
-
     self.testQueue = new PriorityQueue( function(a, b) { return a.score - b.score; } );
     self.testsList = {};
+    self.runningList = {};
 
     // Load all the tests from Cassandra - do this when we see a new commit hash
     async.waterfall([getCommits.bind( this ), getTests.bind( this ), initTestPQ.bind( this )], function(err) {
@@ -49,7 +46,7 @@ function CassandraBackend(name, config, callback) {
             console.log( 'failure in setup', err );
         }
         console.log( 'in memory queue setup complete' );
-        if (self.testQueue.length) {
+        if (self.testQueue.size()) {
             console.log(self.testQueue.peek());
         }
     });
@@ -106,6 +103,7 @@ function getTests(cb) {
 }
 
 function initTestPQ(commitIndex, numTestsLeft, cb) {
+    console.log('in init test pq');
     var queryCB = function (err, results) {
         if (err) {
             console.log('in error init test PQ');
@@ -124,16 +122,16 @@ function initTestPQ(commitIndex, numTestsLeft, cb) {
 
             if (numTestsLeft - results.rows.length > 0) {
                 var redo = initTestPQ.bind( this );
-                redo( commitIndex + 1, numTestsLeft - results.rows.length, cb).bind( this );
+                redo( commitIndex + 1, numTestsLeft - results.rows.length, cb);
             }
             cb(null);
         }
     };
 
-    var lastCommit = this.commits[commitIndex],
-        lastHash = lastCommit && lastCommit.hash || '';
+    var lastCommit = this.commits[commitIndex].hash;
+         lastHash = lastCommit && lastCommit.hash || '';
     if (!lastHash) {
-        cb(null);
+      cb(null);
     }
     var cql = 'select test, score, commit from test_by_score where commit = ?';
 
@@ -167,6 +165,9 @@ CassandraBackend.prototype.getNumRegressions = function (commit, cb) {
  * JSON, for example [ 'enwiki', 'some title', 12345 ]
  */
 CassandraBackend.prototype.getTest = function (commit, cb) {
+    // if (this.testQueue.length) {
+    //     console.log(this.testQueue.peek());
+    // }
 
     /*
     // check running queue for any timed out tests.
@@ -189,7 +190,7 @@ CassandraBackend.prototype.getTest = function (commit, cb) {
     // increment tries, return test;
     */
     console.log(this.commits);
-    cb([ 'enwiki', 'some title', 12345 ]);
+//    cb([ 'enwiki', 'some title', 12345 ]);
 };
 
 /**

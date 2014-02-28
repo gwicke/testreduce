@@ -218,7 +218,7 @@ var receiveResults = function ( req, res ) {
     var commitHash = req.body.commit;
     var perfstats = parsePerfStats( result );
     //passing in single variable to test timeout cancelling
-    store.addResult({title:title, prefix:prefix});
+    store.addResult(JSON.stringify({title:title, prefix:prefix, oldid:42}));
     res.end( 'receive results not implemented yet' );
 };
 /*END: COORD APP*/

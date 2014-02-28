@@ -156,8 +156,8 @@ CassandraBackend.prototype.getNumRegressions = function (commit, cb) {
 };
 
 var testFailure = function(test) {
-    // console.log(test);
-    // console.log('failed');
+     console.log(test);
+     console.log('failed');
 };
 
 /**
@@ -174,8 +174,10 @@ CassandraBackend.prototype.getTest = function (commit, cb) {
     if (this.testQueue.size()) {
         var test = this.testQueue.deq();
         testID = JSON.parse(test.test);
-        // time to failure should be decided here, 3000 is a dummy number for now
-        this.runningTokens[testID] = setTimeout(testFailure.bind(this), 3000, test);
+
+        // time to failure should be decided here, 10000 is a dummy number for now
+        this.runningTokens[testID] = setTimeout(testFailure.bind(this), 10000, test);
+
         cb(JSON.stringify({title: testID.title, prefix: testID.prefix}));
     }
 
@@ -230,7 +232,7 @@ CassandraBackend.prototype.getStatistics = function(cb) {
  * @param cb callback (err) err or null
  */
 CassandraBackend.prototype.addResult = function(test, commit, result, cb) {
-    console.log(test);
+    clearTimeout(this.runningTokens[test]);
     // var tid = commit.timestamp; // fix
 
     // var skipCount = result.match( /<skipped/g ),

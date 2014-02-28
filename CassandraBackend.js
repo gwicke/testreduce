@@ -39,6 +39,9 @@ function CassandraBackend(name, config, callback) {
     self.testQueue = new PriorityQueue( function(a, b) { return a.score - b.score; } );
     self.testsList = {};
     self.runningList = {};
+    // hashtable of callbacks, maps currently running title to setTimeout token.
+    // Call clearTimeout if client posts result for test before failure threshold
+    self.runningTokens = {};
 
     // Load all the tests from Cassandra - do this when we see a new commit hash
     async.waterfall([getCommits.bind( this ), getTests.bind( this ), initTestPQ.bind( this )], function(err) {
@@ -47,7 +50,7 @@ function CassandraBackend(name, config, callback) {
         }
         console.log( 'in memory queue setup complete' );
         if (self.testQueue.size()) {
-            console.log(self.testQueue.peek());
+//            console.log(self.testQueue.peek());
         }
     });
 
@@ -152,7 +155,10 @@ CassandraBackend.prototype.getNumRegressions = function (commit, cb) {
   cb(null, fakeNum);
 };
 
-
+var testFailure = function(test) {
+    // console.log(test);
+    // console.log('failed');
+};
 
 /**
  * Get the next title to test
@@ -165,31 +171,14 @@ CassandraBackend.prototype.getNumRegressions = function (commit, cb) {
  * JSON, for example [ 'enwiki', 'some title', 12345 ]
  */
 CassandraBackend.prototype.getTest = function (commit, cb) {
-    // if (this.testQueue.length) {
-    //     console.log(this.testQueue.peek());
-    // }
-
-    /*
-    // check running queue for any timed out tests.
-    for (testObj in runningQueue) {
-        // if any timed out,
-        if (testObj timed out)  {
-            if (testObj.tries < threshold) {
-                // increment tries, return it;
-                testObj.tries++;
-                cb(null, testObj.test);
-            } else {
-                // pop it; (discard the result)
-                runningQueue.pop();
-            }
-        }
+    if (this.testQueue.size()) {
+        var test = this.testQueue.deq();
+        testID = JSON.parse(test.test);
+        // time to failure should be decided here, 3000 is a dummy number for now
+        this.runningTokens[testID] = setTimeout(testFailure.bind(this), 3000, test);
+        cb(JSON.stringify({title: testID.title, prefix: testID.prefix}));
     }
 
-    // pop test from test queue
-    // push test into running queue
-    // increment tries, return test;
-    */
-    console.log(this.commits);
 //    cb([ 'enwiki', 'some title', 12345 ]);
 };
 
@@ -241,45 +230,46 @@ CassandraBackend.prototype.getStatistics = function(cb) {
  * @param cb callback (err) err or null
  */
 CassandraBackend.prototype.addResult = function(test, commit, result, cb) {
-    var tid = commit.timestamp; // fix
+    console.log(test);
+    // var tid = commit.timestamp; // fix
 
-    var skipCount = result.match( /<skipped/g ),
-            failCount = result.match( /<failure/g ),
-            errorCount = result.match( /<error/g );
+    // var skipCount = result.match( /<skipped/g ),
+    //         failCount = result.match( /<failure/g ),
+    //         errorCount = result.match( /<error/g );
 
-    // Build up the CQL
-    // Simple revison table insertion only for now
-    var cql = 'BEGIN BATCH ',
-        args = [],
-    score = statsScore(skipCount, failCount, errorCount);
+    // // Build up the CQL
+    // // Simple revison table insertion only for now
+    // var cql = 'BEGIN BATCH ',
+    //     args = [],
+    // score = statsScore(skipCount, failCount, errorCount);
 
-    // Insert into results
-    cql += 'insert into results (test, tid, result)' +
-                'values(?, ?, ?);\n';
-    args = args.concat([
-            test,
-            tid,
-            result
-        ]);
+    // // Insert into results
+    // cql += 'insert into results (test, tid, result)' +
+    //             'values(?, ?, ?);\n';
+    // args = args.concat([
+    //         test,
+    //         tid,
+    //         result
+    //     ]);
 
-    // Check if test score changed
-    if (testScores[test] == score) {
-        // If changed, update test_by_score
-        cq += 'insert into test_by_score (commit, score, test)' +
-                    'values(?, ?, ?);\n';
-        args = args.concat([
-                commit,
-                score,
-                test
-            ]);
+    // // Check if test score changed
+    // if (testScores[test] == score) {
+    //     // If changed, update test_by_score
+    //     cq += 'insert into test_by_score (commit, score, test)' +
+    //                 'values(?, ?, ?);\n';
+    //     args = args.concat([
+    //             commit,
+    //             score,
+    //             test
+    //         ]);
 
-        // Update scores in memory;
-        testScores[test] = score;
-    }
-    // And finish it off
-    cql += 'APPLY BATCH;';
+    //     // Update scores in memory;
+    //     testScores[test] = score;
+    // }
+    // // And finish it off
+    // cql += 'APPLY BATCH;';
 
-    this.client.execute(cql, args, this.consistencies.write, cb);
+    // this.client.execute(cql, args, this.consistencies.write, cb);
 
 }
 

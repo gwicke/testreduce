@@ -217,9 +217,8 @@ var receiveResults = function ( req, res ) {
     var prefix = req.params[1];
     var commitHash = req.body.commit;
     var perfstats = parsePerfStats( result );
-    console.log(result);
-    console.log(perfstats);
-    store.addResult('blah');
+    //passing in single variable to test timeout cancelling
+    store.addResult({title:title, prefix:prefix});
     res.end( 'receive results not implemented yet' );
 };
 /*END: COORD APP*/

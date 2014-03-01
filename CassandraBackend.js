@@ -37,11 +37,8 @@ function CassandraBackend(name, config, callback) {
     self.commits = [];
 
     self.testQueue = new PriorityQueue( function(a, b) { return a.score - b.score; } );
+    self.runningQueue = [];
     self.testsList = {};
-    self.runningList = {};
-    // hashtable of callbacks, maps currently running title to setTimeout token.
-    // Call clearTimeout if client posts result for test before failure threshold
-    self.runningTokens = {};
 
     // Load all the tests from Cassandra - do this when we see a new commit hash
     async.waterfall([getCommits.bind( this ), getTests.bind( this ), initTestPQ.bind( this )], function(err) {
@@ -103,7 +100,6 @@ function getTests(cb) {
 }
 
 function initTestPQ(commitIndex, numTestsLeft, cb) {
-    console.log('in init test pq');
     var queryCB = function (err, results) {
         if (err) {
             console.log('in error init test PQ');
@@ -113,7 +109,7 @@ function initTestPQ(commitIndex, numTestsLeft, cb) {
         } else {
             for (var i = 0; i < results.rows.length; i++) {
                 var result = results.rows[i];
-                this.testQueue.enq( { test: result[0], score: result[1], commit: result[2].toString() } );
+                this.testQueue.enq( { test: result[0], score: result[1], commit: result[2].toString(), failCount: 0 } );
             }
 
             if (numTestsLeft == 0 || this.commits[commitIndex].isSnapshot) {
@@ -152,10 +148,39 @@ CassandraBackend.prototype.getNumRegressions = function (commit, cb) {
   cb(null, fakeNum);
 };
 
-var testFailure = function(test) {
-     console.log(test);
-     console.log('failed');
-};
+var removePassedTest = function(testName) {
+    for (var i = 0; i < this.runningQueue.length; i++) {
+        var job = this.runningQueue[i];
+        if (job.ID === testName) {
+            this.runningQueue.splice(i, 1);
+            break;
+        }
+    }
+    console.log(this.runningQueue);
+}
+
+/**
+ * Scan runningQueue for failed jobs(tests that have been handed out)
+ * and remove any test which has been running for more than 10 minutes (randomly decided number for now)
+ */
+var removeFailedTests = function() {
+    for (var i = 0, currTime = new Date(); i < this.runningQueue.length; i++) {
+        var job = this.runningQueue[i];
+        if ((currTime.getMinutes() - job.startTime.getMinutes()) > 10) {
+            if (job.test.failCount < this.numFailures) {
+                job.test.score += (job.test.failCount++ * 1000);
+                this.testQueue.enq(job);
+                this.runningQueue.splice(i, 1);
+                i--;
+            } else {
+                //record test as failure
+            }
+        } else {
+            // If a given job at any index has not failed, then the jobs with index greater will not have failed either.
+            break;
+       }
+    }
+}
 
 /**
  * Get the next title to test
@@ -170,10 +195,12 @@ var testFailure = function(test) {
 CassandraBackend.prototype.getTest = function (commit, cb) {
     if (this.testQueue.size()) {
         var test = this.testQueue.deq();
+        //ID for identifying test, containing title, prefix and oldID.
         testID = JSON.parse(test.test);
+        this.runningQueue.push({ID: testID, test: test, startTime: new Date()});
 
-        // time to failure should be decided here, 10000 is a dummy number for now
-        this.runningTokens[testID] = setTimeout(testFailure.bind(this), 10000, test);
+        // Scan running queue for failed tests
+        removeFailedTests.bind(this)();
 
         cb(JSON.stringify({title: testID.title, prefix: testID.prefix}));
     }
@@ -229,7 +256,9 @@ CassandraBackend.prototype.getStatistics = function(cb) {
  * @param cb callback (err) err or null
  */
 CassandraBackend.prototype.addResult = function(test, commit, result, cb) {
-    clearTimeout(this.runningTokens[test]);
+    (removePassedTest.bind(this))(test);
+    // logic to clear timeouts needs to go here
+    // clearTimeout(this.runningTokens[test]);
     // var tid = commit.timestamp; // fix
 
     // var skipCount = result.match( /<skipped/g ),

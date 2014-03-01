@@ -183,7 +183,7 @@ var removeFailedTests = function() {
 }
 
 /**
- * Get the next title to test
+ * Get the next test to run
  *
  * @param commit object {
  * hash: <git hash string>

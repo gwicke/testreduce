@@ -33,14 +33,3 @@ CREATE TABLE IF NOT EXISTS commits (
     keyframe boolean,
     PRIMARY KEY(hash)
 );
-
--- An initial crack at the pages we have.
-CREATE TABLE IF NOT EXISTS pages (
-    title text,
-    prefix text,
-    claim_hash blob,
-    claim_timestamp timeuuid,
-    claim_num_tries int,
-    PRIMARY KEY(title, prefix)
-);
-

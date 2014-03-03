@@ -138,34 +138,29 @@ var fetchedPages = [];
 var lastFetchedCommit = null;
 var lastFetchedDate = new Date(0);
 
-var setups = {};
-setups.cassandra = function(name, options, cb) {
-	return new CassandraBackend(name, options, cb);
-};
-setups.mock = function(name, options, cb) {
-	return new MockBackend(name, options, cb);
-};
 
-var handlers = {
-   cass: {},
-   mock: {}
-};
+var backend = null;
 
-/*this rigs the handler to return the backend from CassandraBackend*/
-handlers.cass = setups[settings.backend.type]("", settings, function(err) {
-	if(err) {
-		console.error("CassandraBackend not working??");
-		process.exit(1);
-	}
-});
-
-/*this rigs the handler to return the mockbackend from MockBackend*/
-handlers.mock = setups.mock("", settings, function(err) {
-	if(err) {
-		console.error("MockBackend not working??");
-		process.exit(1);
-	}
-});
+if(settings.backend.type ==="cassandra") {
+  backend = new CassandraBackend("", settings, function(err) {
+     if(err) {
+        console.error("CassandraBackend not working??");
+        process.exit(1);
+     } else {
+        console.log("CassandraBackend Works");
+     }
+  });
+} else if(settings.backend.type ==="mock") {
+  backend = new MockBackend("", settings, function(err) {
+    if(err) {
+        console.error("MockBackend not working??");
+        process.exit(1);
+    }
+    else {
+        console.log("MockBackend Works");
+    }
+  });
+}
 
 /*BEGIN: COORD APP*/
 
@@ -183,7 +178,7 @@ var getTitle = function ( req, res ) {
     var commitDate = new Date( req.query.ctime );
     var knownCommit = knownCommits && knownCommits[ commitHash ];
     // init backend store reference here?
-    var store = handlers.cass;
+    var store = backend;
 
     res.setHeader( 'Content-Type', 'text/plain; charset=UTF-8' );
 
@@ -233,8 +228,8 @@ var statsWebInterface = function ( req, res ) {
 	  res.write( '<tr style="font-weight:bold"><td style="padding-left:20px;">' + label );
 	  res.write( '</td><td style="padding-left:20px; text-align:right">' + val + '</td></tr>' );
 	};
-	handlers.mock.getStatistics(function(err, result) {
-	  var tests = result.tests;
+	backend.getStatistics(function(err, result) {
+	  var tests = result.numtests;
 	  var errorLess = result.noerrors;
 	  var skipLess = result.noskips;
 	  var failLess  = result.nofails;
@@ -274,11 +269,11 @@ var statsWebInterface = function ( req, res ) {
 	  displayRow(res, "Regressions",
 	           '<a href="/regressions/between/' + result.latestcommit + '/' +
 	           result.beforelatestcommit + '">' +
-	           result.regressions + '</a>');
+	           result.numFixes + '</a>');
 	  displayRow(res, "Fixes",
 	           '<a href="/topfixes/between/' + result.latestcommit + '/' +
 	           result.beforelatestcommit + '">' +
-	           result.fixes + '</a>');
+	           result.numReg + '</a>');
 	  res.write( '</tbody></table></p>' );
 
 	  res.write( '<p>Averages (over the latest results):' );
@@ -296,7 +291,6 @@ var statsWebInterface = function ( req, res ) {
 var failsWebInterface = function ( req, res ) {
     var page = ( req.params[0] || 0 ) - 0,
         offset = page * 40;
-    var backend = new CassandraBackend();
 
     backend.getFails(offset, 40, function(results) {
         //   object {
@@ -371,26 +365,43 @@ var GET_skipsDistr = function( req, res ) {
     res.end('</body></html>');
 };
 
+
 var GET_regressions = function( req, res ) {
-    var commit1 = req.params[0];
-    var commit2 = req.params[1];
+    var r1 = req.params[0];
+    var r2 = req.params[1];
 
 	var urlPrefix = "/regressions/between/" + r1 + "/" + r2;
-	page = (req.params[2] || 0) - 0;
-	offset = page * 40;
+	var page = (req.params[2] || 0) - 0;
+	var offset = page * 40;
 
-    //use cassandra function to retrieve to commits
+    /*put this in mock later */
 
+    backend.getRegressions(r1, r2, urlPrefix, page, function(err, data, info) {
+      var rows = data;
 
-	res.write('<html><body>\n');
-	res.write('Regressions page goes here');
-	res.end('</body></html>');
+      // console.log("passing: " + JSON.stringify(rows, null ,'\t'));
+      displayPageList(res, info, makeRegressionRow, null, rows  );
+
+    });
 };
 
 var GET_topfixes = function( req, res ) {
-    res.write('<html><body>\n');
-    res.write('Top fixes goes here');
-    res.end('</body></html>');
+    var r1 = req.params[0];
+    var r2 = req.params[1];
+
+    var urlPrefix = "/topfixes/between/" + r1 + "/" + r2;
+    var page = (req.params[2] || 0) - 0;
+    var offset = page * 40;
+
+    /*put this in mock later */
+
+    backend.getFixes(r1, r2, urlPrefix, page, function(err, data, info) {
+      var rows = data;
+
+      // console.log("passing: " + JSON.stringify(rows, null ,'\t'));
+      displayPageList(res, info, makeRegressionRow, null, rows  );
+
+    });
 };
 
 var GET_commits = function( req, res ) {
@@ -409,6 +420,89 @@ var GET_pagePerfStats = function( req, res ) {
     res.write('Performance results go here');
     res.end('</body></html>');
 };
+
+/* BEGIN- Helper functions for GET_regressions*/
+var displayPageList = function(res, data, makeRow, err, rows){
+    console.log( "GET " + data.urlPrefix + "/" + data.page + data.urlSuffix );
+    if ( err ) {
+        res.send( err.toString(), 500 );
+    } else if ( !rows || rows.length <= 0 ) {
+        res.send( "No entries found", 404 );
+    } else {
+        var tableRows = [];
+        for (var i = 0; i < rows.length; i++) {
+            var row = rows[i];
+            var tableRow = {status: pageStatus(row), tableData: makeRow(row)};
+            // console.log("table: " + JSON.stringify(tableRow, null, '\t'));
+            tableRows.push(tableRow);
+        }
+
+        var tableData = data;
+        tableData.paginate = true;
+        tableData.row = tableRows;
+        tableData.prev = data.page > 0;
+        tableData.next = rows.length === 40;
+
+        hbs.registerHelper('prevUrl', function (urlPrefix, urlSuffix, page) {
+            return urlPrefix + "/" + ( page - 1 ) + urlSuffix;
+        });
+        hbs.registerHelper('nextUrl', function (urlPrefix, urlSuffix, page) {
+            return urlPrefix + "/" + ( page + 1 ) + urlSuffix;
+        });
+
+        // console.log("JSON: " + JSON.stringify(tableData, null, '\t'));
+        res.render('table.html', tableData);
+    }
+};
+
+var makeRegressionRow = function(row) {
+    return [
+        pageTitleData(row),
+        commitLinkData(row.new_commit, row.title, row.prefix),
+        row.errors + "|" + row.fails + "|" + row.skips,
+        commitLinkData(row.old_commit, row.title, row.prefix),
+        row.old_errors + "|" + row.old_fails + "|" + row.old_skips
+    ];
+};
+
+var pageTitleData = function(row){
+    var parsed = JSON.parse(row.test);
+    var prefix = encodeURIComponent( parsed.prefix ),
+    title = encodeURIComponent( parsed.title );
+    return {
+        title: parsed.prefix + ':' + parsed.title,
+        titleUrl: 'http://parsoid.wmflabs.org/_rt/' + prefix + '/' + title,
+        lh: 'http://localhost:8000/_rt/' + prefix + '/' + title,
+        latest: '/latestresult/' + prefix + '/' + title,
+        perf: '/pageperfstats/' + prefix + '/' + title
+    };
+};
+
+var pageStatus = function(row) {
+    var hasStatus = row.hasOwnProperty( 'skips' ) &&
+        row.hasOwnProperty( 'fails' ) &&
+        row.hasOwnProperty( 'errors' );
+
+    if (hasStatus) {
+        if ( row.skips === 0 && row.fails === 0 && row.errors === 0 ) {
+            return 'perfect';
+        } else if ( row.errors > 0 || row.fails > 0 ) {
+            return 'fail';
+        } else {
+            return 'skip';
+        }
+    }
+    return null;
+};
+
+var commitLinkData = function(commit, title, prefix) {
+    return {
+        url: '/result/' + commit + '/' + prefix + '/' + title,
+        name: commit.substr( 0, 7 )
+    };
+};
+/* End- Helper functions for GET_regressions*/
+
 
 // Make an app
 var app = express.createServer();

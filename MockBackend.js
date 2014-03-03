@@ -158,10 +158,12 @@ function initTestPQ(commitIndex, numTestsLeft, cb) {
  * }
  * @param cb function (err, num) - num is the number of regressions for the last commit
  */
-MockBackend.prototype.getNumRegressions = function (commit, cb) {
-  var fakeNum = 3;
-  cb(null, fakeNum);
+MockBackend.prototype.getNumRegFix = function (commit, cb) {
+  calcRegressionFixes(function(err, reg, fix) {
+    cb(null, reg.length, fix.length);
+  });
 };
+
 
 
 
@@ -233,7 +235,90 @@ MockBackend.prototype.getStatistics = function(cb) {
      * 
      */
     var results = mock;
-    cb(null, results);
+    calcRegressionFixes(function(err, reg, fix) {
+      results.numFixes= fix.length;
+      results.numReg = reg.length;
+      cb(null, results);
+    });
+}
+
+/**
+ * getRegressionRows mock method returns the mock data of the fake regressions
+ */
+
+var regressionsHeaderData = ['Title', 'New Commit', 'Errors|Fails|Skips', 'Old Commit', 'Errors|Fails|Skips'];
+
+var statsScore = function(skip, fail, error) {
+    return error*1000000+fail*1000+skip;
+}
+/**
+This method calculates all the scores data from the tests table
+**/
+function calcRegressionFixes(cb) {
+  var data = mock.testdata;
+
+  var regData = [];
+  var fixData = [];
+  for(var y in data) {
+    var x = data[y];
+    var newtest = statsScore(x.skips, x.fails, x.errors);
+    var oldtest = statsScore(x.old_skips, x.old_fails, x.old_errors);
+
+    /*if they differ then we're going to push it in either the regression or fixes*/
+    if(newtest !== oldtest)  {
+      /*if the new is better than the old then it's a fix, otherwise regress*/
+      (newtest < oldtest) ?fixData.push(x) : regData.push(x);
+    }
+  }
+
+  //console.log("data: " + JSON.stringify(regData, null, '\t') + "\n" + JSON.stringify(fixData,null,'\t'));
+  cb (null, regData, fixData);
+
+
+}
+
+MockBackend.prototype.getRegressions = function(r1, r2, prefix, page, cb) {
+  calcRegressionFixes(function(err, regressions, fix) {
+    var mydata = {
+      page: page,
+      urlPrefix: prefix,
+      urlSuffix: '',
+      heading: "Total regressions between selected revisions: " + regressions.length, /*change this with mock's num regresssions*/
+      headingLink: {url: "/topfixes/between/" + r1 + "/" + r2, name: 'topfixes'},
+      header: regressionsHeaderData
+    };
+
+    for (var i = 0; i < regressions.length; i++) {
+      regressions[i].old_commit= r2;
+      regressions[i].new_commit= r1;
+    }
+
+    //console.log("json: " + JSON.stringify(regressions, null, '\t'));
+
+    cb(null, regressions, mydata);
+  });
+}
+
+/**
+ * getRegressionRows mock method returns the mock data of the fake regressions
+ */
+MockBackend.prototype.getFixes = function(r1, r2, prefix, page, cb) {
+  calcRegressionFixes(function(err, regressions, fixes) {
+    var mydata = {
+      page: page,
+      urlPrefix: prefix,
+      urlSuffix: '',
+      heading: "Total fixes between selected revisions: " + fixes.length, /*change this with mock's num regresssions*/
+      headingLink: {url: '/regressions/between/' + r1 + '/' + r2, name: 'regressions'},
+      header: regressionsHeaderData
+    };
+
+    for (var i = 0; i < fixes.length; i++) {
+          fixes[i].old_commit= r2;
+          fixes[i].new_commit= r1;
+    }
+    cb(null, fixes, mydata);
+  });
 }
 
 /**
@@ -323,6 +408,7 @@ MockBackend.prototype.getFails = function(offset, limit, cb) {
      */
     cb([]);
 }
+
 
 // Node.js module exports. This defines what
 // require('./MockBackend.js'); evaluates to.

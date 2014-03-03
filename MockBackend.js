@@ -1,10 +1,5 @@
 var util = require('util'),
-  events = require('events'),
-  cass = require('node-cassandra-cql'),
-  consistencies = cass.types.consistencies,
-  uuid = require('node-uuid'),
-  mock = require('./mockdata'),
-  async = require('async');
+  mock = require('./mockdata');
 
 
 // Constructor
@@ -13,57 +8,9 @@ function MockBackend(name, config, callback) {
 
   this.name = name;
   this.config = config;
-  // convert consistencies from string to the numeric constants
-  var confConsistencies = config.backend.options.consistencies;
-  this.consistencies = {
-    read: consistencies[confConsistencies.read],
-    write: consistencies[confConsistencies.write]
-  };
-
-  self.client = new cass.Client(config.backend.options);
-
-  var reconnectCB = function(err) {
-    if (err) {
-      // keep trying each 500ms
-      console.error('pool connection error, scheduling retry!');
-      setTimeout(self.client.connect.bind(self.client, reconnectCB), 500);
-    }
-  };
-  this.client.on('connection', reconnectCB);
-  this.client.connect();
 
   var numFailures = config.numFailures;
 
-  // Queues that we use for
-  self.runningQueue = new Array();
-  self.testQueue = new Array();
-
-  self.testArr = [];
-  self.testHash = {};
-
-  // Load all the tests from Cassandra - do this when we see a new commit hash
-  getCommits = getCommits.bind(this);
-  getTests = getTests.bind(this);
-  initTestPQ = initTestPQ.bind(this);
-  async.waterfall([getCommits, getTests, initTestPQ], function(err) {
-      for (test in self.testsList) {
-          if (!(test in self.testHash)) {
-              // construct resultObj
-              var resultObj = {test: test, score: Infinity, commitIndex: -1};
-              self.testArr.push(resultObj);
-              self.testHash.push(test)
-          }
-      }
-      
-      // sort testArr by score
-      self.testArr.sort(function(a,b) {
-          return b.score - a.score;
-      });
-  });
-
-  //this.client.on('log', function(level, message) {
-  //  console.log('log event: %s -- %j', level, message);
-  //});
   callback();
 }
 
@@ -77,7 +24,7 @@ function getCommits(cb) {
 				cb(null);
 			} else {
                 this.commits = results.rows;
-				cb(null); 
+				cb(null);
 			}
 		};
 
@@ -86,7 +33,7 @@ function getCommits(cb) {
 
 	// get commits to tids
 	var cql = 'select * from commits_to_tid;\n';
-  
+
 	this.client.execute(cql, args, this.consistencies.write, queryCB);
 }
 
@@ -182,9 +129,9 @@ MockBackend.prototype.getTest = function (commit, cb) {
     /*
 	// check running queue for any timed out tests.
     for (testObj in runningQueue) {
-        // if any timed out, 
+        // if any timed out,
         if (testObj timed out)  {
-            if (testObj.tries < threshold) { 
+            if (testObj.tries < threshold) {
                 // increment tries, return it;
                 testObj.tries++;
                 cb(null, testObj.test);
@@ -194,7 +141,7 @@ MockBackend.prototype.getTest = function (commit, cb) {
             }
         }
     }
-	
+
 	// pop test from test queue
 	// push test into running queue
 	// increment tries, return test;
@@ -211,7 +158,7 @@ MockBackend.prototype.getTest = function (commit, cb) {
 MockBackend.prototype.getStatistics = function(cb) {
 
     /**
-     * @param results 
+     * @param results
      *    object {
      *       tests: <test count>,
      *       noskips: <tests without skips>,
@@ -227,12 +174,12 @@ MockBackend.prototype.getStatistics = function(cb) {
      *           skips: <average num skips>,
      *           scores: <average num scores>
      *       },
-     *       
+     *
      *       crashes: <num crashes>,
      *       regressions: <num regressions>,
      *       fixes: <num fixes>
      *   }
-     * 
+     *
      */
     var results = mock;
     calcRegressionFixes(function(err, reg, fix) {
@@ -333,7 +280,7 @@ MockBackend.prototype.getFixes = function(r1, r2, prefix, page, cb) {
  * @param cb callback (err) err or null
  */
 MockBackend.prototype.addResult = function(test, commit, result, cb) {
-	var tid = commit.timestamp; // fix 
+	var tid = commit.timestamp; // fix
 
 	var skipCount = result.match( /<skipped/g ),
 			failCount = result.match( /<failure/g ),

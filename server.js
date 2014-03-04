@@ -183,27 +183,10 @@ var getTitle = function ( req, res ) {
     store.getTest(commitHash, fetchCb);
 };
 
-var parsePerfStats = function( text ) {
-    var regexp = /<perfstat[\s]+type="([\w\:]+)"[\s]*>([\d]+)/g;
-    var perfstats = [];
-    for ( var match = regexp.exec( text ); match !== null; match = regexp.exec( text ) ) {
-        perfstats.push( { type: match[ 1 ], value: match[ 2 ] } );
-    }
-    return perfstats;
-};
-
 var receiveResults = function ( req, res ) {
-    var store = handlers.cass;
-    var title = req.params[ 0 ],
-        result = req.body.results,
-        skipCount = result.match( /<skipped/g ),
-        failCount = result.match( /<failure/g ),
-        errorCount = result.match( /<error/g );
-    var prefix = req.params[1];
-    var commitHash = req.body.commit;
-    var perfstats = parsePerfStats( result );
+    var store = backend;
     //passing in single variable to test timeout cancelling
-    store.addResult(JSON.stringify({title:title, prefix:prefix, oldid:42}));
+    store.addResult(req);
     res.end( 'receive results not implemented yet' );
 };
 /*END: COORD APP*/

@@ -151,7 +151,7 @@ CassandraBackend.prototype.getNumRegressions = function (commit, cb) {
 var removePassedTest = function(testName) {
     for (var i = 0; i < this.runningQueue.length; i++) {
         var job = this.runningQueue[i];
-        if (job.ID === testName) {
+        if (job.test === testName) {
             this.runningQueue.splice(i, 1);
             break;
         }
@@ -162,12 +162,11 @@ var getTestToRetry() {
     for (var i = 0; len = this.runningQueue.length; i < len; i++) {
         var job = this.runningQueue[this.runningQueue.length - 1];
         if ((currTime.getMinutes() - job.startTime.getMinutes()) > 10) {
+            this.runningQueue.pop();
             if (job.test.failCount < this.numFailures) {
                 job.test.failCount ++;
-                this.runningQueue.pop();
                 return job;
             } else {
-                this.runningQueue.pop();
                 // write failed test into cassandra data store
             }
         } else {
@@ -194,10 +193,9 @@ CassandraBackend.prototype.getTest = function (commit, cb) {
     } else if (this.testQueue.size()) {
         var test = this.testQueue.deq();
         //ID for identifying test, containing title, prefix and oldID.
-        testID = JSON.parse(test.test);
-        this.runningQueue.unshift({ID: testID, test: test, startTime: new Date()});
+        this.runningQueue.unshift({test: test, startTime: new Date()});
 
-        cb(JSON.stringify({title: testID.title, prefix: testID.prefix}));
+        cb(test);
     }
 
 //    cb([ 'enwiki', 'some title', 12345 ]);

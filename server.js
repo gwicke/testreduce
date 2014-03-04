@@ -173,16 +173,6 @@ var getTitle = function ( req, res ) {
 
     res.setHeader( 'Content-Type', 'text/plain; charset=UTF-8' );
 
-    // if ( !knownCommit ) {
-    //     console.log( 'Unknown commit requested' );
-    //     // Maybe populate known commit table at startup?
-    //     // Empty commit table case handled by getTitle in current implementation
-    //     if ( !knownCommits ) {
-    //         populateKnownCommits( store, knownCommits );
-    //     }
-    //     // Backend logic for handling unseen commits and lastFetchedCommit goes here
-    // }
-
     var fetchCb = function(page) {
         // NOT IMPLEMENTED YET
         // 404 and 426 handling will need to be handled based upon backend return value

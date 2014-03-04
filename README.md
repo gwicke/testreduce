@@ -6,7 +6,7 @@ on a large corpus of Wikipedia pages. More information in the
 [Parsoid round-trip testing](https://www.mediawiki.org/wiki/Parsoid/Round-trip_testing)
 page.
 
-Installation with Cassandra:
+Installation with Cassandra 2.0.5:
 
 ```bash
 npm install

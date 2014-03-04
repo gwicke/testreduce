@@ -184,7 +184,8 @@ var getTitle = function ( req, res ) {
 };
 
 var receiveResults = function ( req, res ) {
-    backend.addResult(req);
+    var test = new Buffer(JSON.stringify({title: req.params[0], prefix: req.params[1], oldid: 42}));
+    backend.addResult(test);
     res.end( 'receive results not implemented yet' );
 };
 /*END: COORD APP*/

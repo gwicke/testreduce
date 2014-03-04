@@ -156,7 +156,6 @@ var removePassedTest = function(testName) {
             break;
         }
     }
-    console.log(this.runningQueue);
 }
 
 /**
@@ -164,8 +163,8 @@ var removePassedTest = function(testName) {
  * and remove any test which has been running for more than 10 minutes (randomly decided number for now)
  */
 var removeFailedTests = function() {
-    for (var i = 0, currTime = new Date(); i < this.runningQueue.length; i++) {
-        var job = this.runningQueue[i];
+    for (var i = 0, currTime = new Date(), len = this.runningQueue.length; i < len; i++) {
+        var job = this.runningQueue[this.runningQueue.length - 1];
         if ((currTime.getMinutes() - job.startTime.getMinutes()) > 10) {
             if (job.test.failCount < this.numFailures) {
                 job.test.score += (job.test.failCount++ * 1000);
@@ -197,7 +196,7 @@ CassandraBackend.prototype.getTest = function (commit, cb) {
         var test = this.testQueue.deq();
         //ID for identifying test, containing title, prefix and oldID.
         testID = JSON.parse(test.test);
-        this.runningQueue.push({ID: testID, test: test, startTime: new Date()});
+        this.runningQueue.unshift({ID: testID, test: test, startTime: new Date()});
 
         // Scan running queue for failed tests
         removeFailedTests.bind(this)();

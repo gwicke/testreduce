@@ -159,14 +159,19 @@ var removePassedTest = function(testName) {
 }
 
 var getTestToRetry() {
-    var job = this.runningQueue[this.runningQueue.length - 1];
-    if ((currTime.getMinutes() - job.startTime.getMinutes()) > 10) {
-        if (job.test.failCount < this.numFailures) {
-            job.test.failCount ++;
-            this.runningQueue.pop();
-            return job;
+    for (var i = 0; len = this.runningQueue.length; i < len; i++) {
+        var job = this.runningQueue[this.runningQueue.length - 1];
+        if ((currTime.getMinutes() - job.startTime.getMinutes()) > 10) {
+            if (job.test.failCount < this.numFailures) {
+                job.test.failCount ++;
+                this.runningQueue.pop();
+                return job;
+            } else {
+                this.runningQueue.pop();
+                // write failed test into cassandra data store
+            }
         } else {
-            // write failed test into cassandra data store
+            break;
         }
     }
     return undefined;

@@ -6,6 +6,15 @@ var util = require('util'),
   PriorityQueue = require('priorityqueuejs'),
   async = require('async');
 
+function tidFromDate(date) {
+    // Create a new, deterministic timestamp
+    return uuid.v1({
+        node: [0x01, 0x23, 0x45, 0x67, 0x89, 0xab],
+        clockseq: 0x1234,
+        msecs: date.getTime(),
+        nsecs: 0
+    });
+}
 
 // Constructor
 function CassandraBackend(name, config, callback) {
@@ -250,6 +259,9 @@ CassandraBackend.prototype.getStatistics = function(cb) {
  */
 CassandraBackend.prototype.addResult = function(test, commit, result, cb) {
     (removePassedTest.bind(this))(test);
+    cql = 'insert into results (test, tid, result) values (?, ?, ?);';
+    args = [test, tidFromDate(new Date()), result];
+    this.client.execute(cql, args, this.consistencies.write, cb);
     // logic to clear timeouts needs to go here
     // clearTimeout(this.runningTokens[test]);
     // var tid = commit.timestamp; // fix

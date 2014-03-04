@@ -148,7 +148,7 @@ CassandraBackend.prototype.getNumRegressions = function (commit, cb) {
   cb(null, fakeNum);
 };
 
-var removePassedTest = function(testName) {
+function removePassedTest(testName) {
     for (var i = 0; i < this.runningQueue.length; i++) {
         var job = this.runningQueue[i];
         if (job.test === testName) {
@@ -156,10 +156,10 @@ var removePassedTest = function(testName) {
             break;
         }
     }
-}
+};
 
-var getTestToRetry() {
-    for (var i = 0; len = this.runningQueue.length; i < len; i++) {
+function getTestToRetry() {
+    for (var i = 0, len = this.runningQueue.length; i < len; i++) {
         var job = this.runningQueue[this.runningQueue.length - 1];
         if ((currTime.getMinutes() - job.startTime.getMinutes()) > 10) {
             this.runningQueue.pop();
@@ -174,7 +174,7 @@ var getTestToRetry() {
         }
     }
     return undefined;
-}
+};
 
 /**
  * Get the next test to run

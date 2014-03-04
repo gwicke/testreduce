@@ -184,9 +184,7 @@ var getTitle = function ( req, res ) {
 };
 
 var receiveResults = function ( req, res ) {
-    var store = backend;
-    //passing in single variable to test timeout cancelling
-    store.addResult(req);
+    backend.addResult(req);
     res.end( 'receive results not implemented yet' );
 };
 /*END: COORD APP*/

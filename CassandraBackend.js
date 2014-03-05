@@ -168,7 +168,7 @@ function removePassedTest(testName) {
 };
 
 function getTestToRetry() {
-    for (var i = 0, len = this.runningQueue.length; i < len; i++) {
+    for (var i = 0, len = this.runningQueue.length, currTime = new Date(); i < len; i++) {
         var job = this.runningQueue[this.runningQueue.length - 1];
         if ((currTime.getMinutes() - job.startTime.getMinutes()) > 10) {
             this.runningQueue.pop();
@@ -204,7 +204,7 @@ CassandraBackend.prototype.getTest = function (commit, cb) {
         //ID for identifying test, containing title, prefix and oldID.
         this.runningQueue.unshift({test: test, startTime: new Date()});
 
-        cb(test);
+        cb(test.test);
     }
 
 //    cb([ 'enwiki', 'some title', 12345 ]);
@@ -261,7 +261,12 @@ CassandraBackend.prototype.addResult = function(test, commit, result, cb) {
     (removePassedTest.bind(this))(test);
     cql = 'insert into results (test, tid, result) values (?, ?, ?);';
     args = [test, tidFromDate(new Date()), result];
-    this.client.execute(cql, args, this.consistencies.write, cb);
+    this.client.execute(cql, args, this.consistencies.write, function(err, result) {
+        if (err) {
+            console.log(err);
+        } else {
+        }
+    });
     // logic to clear timeouts needs to go here
     // clearTimeout(this.runningTokens[test]);
     // var tid = commit.timestamp; // fix

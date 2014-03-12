@@ -65,9 +65,9 @@ function getCommits(cb) {
     var queryCB = function (err, results) {
         if (err) {
             cb(err);
-        } else if (!results || !results.rows) {
-            console.log( 'no seen commits, error in database' );
-            cb(null);
+        } else if (!results || !results.rows || results.rows.length === 0) {
+            //console.log( 'no seen commits, error in database' );
+            cb("no seen commits, error in database");
         } else {
             for (var i = 0; i < results.rows.length; i++) {
                 var commit = results.rows[i];
@@ -93,7 +93,6 @@ function getTests(cb) {
             console.log( 'no seen commits, error in database' );
             cb(null, 0, 0);
         } else {
-
             // I'm not sure we need to have this, but it exists for now till we decide not to have it.
             for (var i = 0; i < results.rows.length; i++) {
                 this.testsList[results.rows[i]] = true;
@@ -133,19 +132,15 @@ function initTestPQ(commitIndex, numTestsLeft, cb) {
             cb(null);
         }
     };
-
     var lastCommit = this.commits[commitIndex].hash;
-         lastHash = lastCommit && lastCommit.hash || '';
+        lastHash = lastCommit && lastCommit.hash || '';
     if (!lastHash) {
       cb(null);
     }
     var cql = 'select test, score, commit from test_by_score where commit = ?';
     
 
-    //note to those who are working on the direct backend, I added this because now that the cql
-    //schema is changed, you can only do a range query on a blob 
-    myfake = new Buffer("0b5db8b91bfdeb0a304b372dd8dda123b3fd1ab6");
-    this.client.execute(cql, [myfake], this.consistencies.write, queryCB.bind( this ));
+    this.client.execute(cql, [lastCommit], this.consistencies.write, queryCB.bind( this ));
 }
 
 /**
@@ -252,6 +247,11 @@ CassandraBackend.prototype.getStatistics = function(commit, cb) {
     3) We have latest commit, num tests and For now, 
     just mock the data for numreg, numfixes, and crashes and latest commit
 
+
+    insert into test_by_score (commit, delta, test, score) values (textAsBlob('0b5db8b91bfdeb0a304b372dd8dda123b3fd1ab6'), 0, textAsBlob('{"prefix": "enwiki", "title": "\"Slonowice_railway_station\""}'), 28487);
+    insert into test_by_score (commit, delta, test, score) values (textAsBlob('0b5db8b91bfdeb0a304b372dd8dda123b3fd1ab6'), 0, textAsBlob('{"prefix": "enwiki", "title": "\"Salfoeld\""}'), 192);
+    insert into test_by_score (commit, delta, test, score) values (textAsBlob('0b5db8b91bfdeb0a304b372dd8dda123b3fd1ab6'), 0, textAsBlob('{"prefix": "enwiki", "title": "\"Aghnadarragh\""}'), 10739);
+
      */
 
  
@@ -268,11 +268,11 @@ CassandraBackend.prototype.getStatistics = function(commit, cb) {
             console.log( 'no seen commits, error in database' );
             cb(null);
         } else {
-            console.log("hooray we have data!: " + JSON.stringify(results, null,'\t'));
+            //console.log("hooray we have data!: " + JSON.stringify(results, null,'\t'));
             var noerrors = 0, nofails = 0, noskips = 0;
             var numtests = results.rows.length;
             async.each(results.rows, function(item, callback) {
-                console.log("item: " + JSON.stringify(item, null,'\t'));
+                //console.log("item: " + JSON.stringify(item, null,'\t'));
                 var data = item[0];
                 if(data < 1000000) {
                   if(data == 0) {
@@ -292,10 +292,11 @@ CassandraBackend.prototype.getStatistics = function(commit, cb) {
                     numtests: numtests,
                     noerrors: noerrors,
                     noskips: noskips,
-                    nofails: nofails
+                    nofails: nofails,
+                    latestcommit: commit.toString()
                 };
                 console.log("result: " + JSON.stringify(results, null,'\t'));
-              cb(null, results);
+                cb(null, results);
 
             })
         }

@@ -6,6 +6,15 @@ var util = require('util'),
   PriorityQueue = require('priorityqueuejs'),
   async = require('async');
 
+function tidFromDate(date) {
+    // Create a new, deterministic timestamp
+    return uuid.v1({
+        node: [0x01, 0x23, 0x45, 0x67, 0x89, 0xab],
+        clockseq: 0x1234,
+        msecs: date.getTime(),
+        nsecs: 0
+    });
+}
 
 // Constructor
 function CassandraBackend(name, config, callback) {
@@ -36,11 +45,8 @@ function CassandraBackend(name, config, callback) {
 
     self.commits = [];
 
-    // Queues that we use for
-    self.runningQueue = new Array();
-
-
     self.testQueue = new PriorityQueue( function(a, b) { return a.score - b.score; } );
+    self.runningQueue = [];
     self.testsList = {};
 
     // Load all the tests from Cassandra - do this when we see a new commit hash
@@ -49,9 +55,6 @@ function CassandraBackend(name, config, callback) {
             console.log( 'failure in setup', err );
         }
         console.log( 'in memory queue setup complete' );
-        if (self.testQueue.length) {
-            console.log(self.testQueue.peek());
-        }
     });
 
     callback();
@@ -116,7 +119,7 @@ function initTestPQ(commitIndex, numTestsLeft, cb) {
         } else {
             for (var i = 0; i < results.rows.length; i++) {
                 var result = results.rows[i];
-                this.testQueue.enq( { test: result[0], score: result[1], commit: result[2].toString() } );
+                this.testQueue.enq( { test: result[0], score: result[1], commit: result[2].toString(), failCount: 0 } );
             }
 
             if (numTestsLeft == 0 || this.commits[commitIndex].isSnapshot) {
@@ -125,16 +128,16 @@ function initTestPQ(commitIndex, numTestsLeft, cb) {
 
             if (numTestsLeft - results.rows.length > 0) {
                 var redo = initTestPQ.bind( this );
-                redo( commitIndex + 1, numTestsLeft - results.rows.length, cb).bind( this );
+                redo( commitIndex + 1, numTestsLeft - results.rows.length, cb);
             }
             cb(null);
         }
     };
 
-    var lastCommit = this.commits[commitIndex],
-        lastHash = lastCommit && lastCommit.hash || '';
+    var lastCommit = this.commits[commitIndex].hash;
+         lastHash = lastCommit && lastCommit.hash || '';
     if (!lastHash) {
-        cb(null);
+      cb(null);
     }
     var cql = 'select test, score, commit from test_by_score where commit = ?';
     
@@ -159,7 +162,33 @@ CassandraBackend.prototype.getNumRegressions = function (commit, cb) {
   cb(null, fakeNum);
 };
 
+function removePassedTest(testName) {
+    for (var i = 0; i < this.runningQueue.length; i++) {
+        var job = this.runningQueue[i];
+        if (job.test === testName) {
+            this.runningQueue.splice(i, 1);
+            break;
+        }
+    }
+};
 
+function getTestToRetry() {
+    for (var i = 0, len = this.runningQueue.length, currTime = new Date(); i < len; i++) {
+        var job = this.runningQueue[this.runningQueue.length - 1];
+        if ((currTime.getMinutes() - job.startTime.getMinutes()) > 10) {
+            this.runningQueue.pop();
+            if (job.test.failCount < this.numFailures) {
+                job.test.failCount ++;
+                return job;
+            } else {
+                // write failed test into cassandra data store
+            }
+        } else {
+            break;
+        }
+    }
+    return undefined;
+};
 
 /**
  * Get the next test to run
@@ -172,29 +201,18 @@ CassandraBackend.prototype.getNumRegressions = function (commit, cb) {
  * JSON, for example [ 'enwiki', 'some title', 12345 ]
  */
 CassandraBackend.prototype.getTest = function (commit, cb) {
+    var retry = (getTestToRetry.bind(this))();
+    if (retry) {
+        return retry;
+    } else if (this.testQueue.size()) {
+        var test = this.testQueue.deq();
+        //ID for identifying test, containing title, prefix and oldID.
+        this.runningQueue.unshift({test: test, startTime: new Date()});
 
-    /*
-    // check running queue for any timed out tests.
-    for (testObj in runningQueue) {
-        // if any timed out,
-        if (testObj timed out)  {
-            if (testObj.tries < threshold) {
-                // increment tries, return it;
-                testObj.tries++;
-                cb(null, testObj.test);
-            } else {
-                // pop it; (discard the result)
-                runningQueue.pop();
-            }
-        }
+        cb(test.test);
     }
 
-    // pop test from test queue
-    // push test into running queue
-    // increment tries, return test;
-    */
-    console.log(this.commits);
-    cb([ 'enwiki', 'some title', 12345 ]);
+//    cb([ 'enwiki', 'some title', 12345 ]);
 };
 
 /**
@@ -298,45 +316,56 @@ CassandraBackend.prototype.getStatistics = function(commit, cb) {
  * @param cb callback (err) err or null
  */
 CassandraBackend.prototype.addResult = function(test, commit, result, cb) {
-    var tid = commit.timestamp; // fix
+    (removePassedTest.bind(this))(test);
+    cql = 'insert into results (test, tid, result) values (?, ?, ?);';
+    args = [test, tidFromDate(new Date()), result];
+    this.client.execute(cql, args, this.consistencies.write, function(err, result) {
+        if (err) {
+            console.log(err);
+        } else {
+        }
+    });
+    // logic to clear timeouts needs to go here
+    // clearTimeout(this.runningTokens[test]);
+    // var tid = commit.timestamp; // fix
 
-    var skipCount = result.match( /<skipped/g ),
-            failCount = result.match( /<failure/g ),
-            errorCount = result.match( /<error/g );
+    // var skipCount = result.match( /<skipped/g ),
+    //         failCount = result.match( /<failure/g ),
+    //         errorCount = result.match( /<error/g );
 
-    // Build up the CQL
-    // Simple revison table insertion only for now
-    var cql = 'BEGIN BATCH ',
-        args = [],
-    score = statsScore(skipCount, failCount, errorCount);
+    // // Build up the CQL
+    // // Simple revison table insertion only for now
+    // var cql = 'BEGIN BATCH ',
+    //     args = [],
+    // score = statsScore(skipCount, failCount, errorCount);
 
-    // Insert into results
-    cql += 'insert into results (test, tid, result)' +
-                'values(?, ?, ?);\n';
-    args = args.concat([
-            test,
-            tid,
-            result
-        ]);
+    // // Insert into results
+    // cql += 'insert into results (test, tid, result)' +
+    //             'values(?, ?, ?);\n';
+    // args = args.concat([
+    //         test,
+    //         tid,
+    //         result
+    //     ]);
 
-    // Check if test score changed
-    if (testScores[test] == score) {
-        // If changed, update test_by_score
-        cq += 'insert into test_by_score (commit, score, test)' +
-                    'values(?, ?, ?);\n';
-        args = args.concat([
-                commit,
-                score,
-                test
-            ]);
+    // // Check if test score changed
+    // if (testScores[test] == score) {
+    //     // If changed, update test_by_score
+    //     cq += 'insert into test_by_score (commit, score, test)' +
+    //                 'values(?, ?, ?);\n';
+    //     args = args.concat([
+    //             commit,
+    //             score,
+    //             test
+    //         ]);
 
-        // Update scores in memory;
-        testScores[test] = score;
-    }
-    // And finish it off
-    cql += 'APPLY BATCH;';
+    //     // Update scores in memory;
+    //     testScores[test] = score;
+    // }
+    // // And finish it off
+    // cql += 'APPLY BATCH;';
 
-    this.client.execute(cql, args, this.consistencies.write, cb);
+    // this.client.execute(cql, args, this.consistencies.write, cb);
 
 }
 

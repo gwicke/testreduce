@@ -164,15 +164,6 @@ if(settings.backend.type ==="cassandra") {
 
 /*BEGIN: COORD APP*/
 
-// // backend store needed to populate commit table?
-// function populateKnownCommits( store, commitTable ) {
-//     store.getCommits(null);
-//     //Logic to populate knownCommits table goes here
-// }
-
-/**
- * Needs to be hooked up to backend.
- */
 var getTitle = function ( req, res ) {
     var commitHash = req.query.commit;
     var commitDate = new Date( req.query.ctime );
@@ -182,28 +173,19 @@ var getTitle = function ( req, res ) {
 
     res.setHeader( 'Content-Type', 'text/plain; charset=UTF-8' );
 
-    // if ( !knownCommit ) {
-    //     console.log( 'Unknown commit requested' );
-    //     // Maybe populate known commit table at startup?
-    //     // Empty commit table case handled by getTitle in current implementation
-    //     if ( !knownCommits ) {
-    //         populateKnownCommits( store, knownCommits );
-    //     }
-    //     // Backend logic for handling unseen commits and lastFetchedCommit goes here
-    // }
-
-    var fetchCb = function(err, page) {
+    var fetchCb = function(page) {
+        // NOT IMPLEMENTED YET
         // 404 and 426 handling will need to be handled based upon backend return value
-        if ( !err ) {
-            console.log( ' ->', page );
-            res.send( page, 200 );
-        }
+        console.log( ' ->', page );
+        res.send( page, 200 );
     };
 
     store.getTest(commitHash, fetchCb);
 };
 
 var receiveResults = function ( req, res ) {
+    var test = new Buffer(JSON.stringify({title: req.params[0], prefix: req.params[1], oldid: 42}));
+    backend.addResult(test, req.body.commit, req.body.results);
     res.end( 'receive results not implemented yet' );
 };
 /*END: COORD APP*/

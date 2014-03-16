@@ -211,7 +211,7 @@ CassandraBackend.prototype.updateCommits = function(lastCommitTimestamp, commit,
  */
 CassandraBackend.prototype.getTest = function (clientCommit, clientDate, cb) {
     var retry = this.getTestToRetry(),
-        lastCommitTimestamp = this.commits[0].timestamp;
+        lastCommitTimestamp = this.commits[0].timestamp,
         retVal = 404;
 
     this.updateCommits(lastCommitTimestamp, clientCommit, clientDate);

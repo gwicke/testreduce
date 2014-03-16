@@ -214,7 +214,7 @@ CassandraBackend.prototype.getTest = function (clientCommit, clientDate, cb) {
         lastCommitTimestamp = this.commits[0].timestamp;
         retVal = 404;
 
-    this.updateCommits(lastCommit, clientCommit, clientDate);
+    this.updateCommits(lastCommitTimestamp, clientCommit, clientDate);
     if (lastCommitTimestamp > clientDate) {
         retVal = 426;
     } else if (retry) {

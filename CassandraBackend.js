@@ -196,7 +196,7 @@ function getTestToRetry() {
  * JSON, for example [ 'enwiki', 'some title', 12345 ]
  */
 CassandraBackend.prototype.getTest = function (commit, cb) {
-    var retry = (getTestToRetry.bind(this))();
+    var retry = this.getTestToRetry();
     if (retry) {
         return retry;
     } else if (this.testQueue.size()) {
@@ -258,7 +258,7 @@ CassandraBackend.prototype.getStatistics = function(cb) {
  * @param cb callback (err) err or null
  */
 CassandraBackend.prototype.addResult = function(test, commit, result, cb) {
-    (removePassedTest.bind(this))(test);
+    this.removePassedTest(test);
     cql = 'insert into results (test, tid, result) values (?, ?, ?);';
     args = [test, tidFromDate(new Date()), result];
     this.client.execute(cql, args, this.consistencies.write, function(err, result) {
@@ -267,48 +267,6 @@ CassandraBackend.prototype.addResult = function(test, commit, result, cb) {
         } else {
         }
     });
-    // logic to clear timeouts needs to go here
-    // clearTimeout(this.runningTokens[test]);
-    // var tid = commit.timestamp; // fix
-
-    // var skipCount = result.match( /<skipped/g ),
-    //         failCount = result.match( /<failure/g ),
-    //         errorCount = result.match( /<error/g );
-
-    // // Build up the CQL
-    // // Simple revison table insertion only for now
-    // var cql = 'BEGIN BATCH ',
-    //     args = [],
-    // score = statsScore(skipCount, failCount, errorCount);
-
-    // // Insert into results
-    // cql += 'insert into results (test, tid, result)' +
-    //             'values(?, ?, ?);\n';
-    // args = args.concat([
-    //         test,
-    //         tid,
-    //         result
-    //     ]);
-
-    // // Check if test score changed
-    // if (testScores[test] == score) {
-    //     // If changed, update test_by_score
-    //     cq += 'insert into test_by_score (commit, score, test)' +
-    //                 'values(?, ?, ?);\n';
-    //     args = args.concat([
-    //             commit,
-    //             score,
-    //             test
-    //         ]);
-
-    //     // Update scores in memory;
-    //     testScores[test] = score;
-    // }
-    // // And finish it off
-    // cql += 'APPLY BATCH;';
-
-    // this.client.execute(cql, args, this.consistencies.write, cb);
-
 }
 
 var statsScore = function(skipCount, failCount, errorCount) {

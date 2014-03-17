@@ -210,7 +210,20 @@ var statsWebInterface = function ( req, res ) {
 	  res.write( '<tr style="font-weight:bold"><td style="padding-left:20px;">' + label );
 	  res.write( '</td><td style="padding-left:20px; text-align:right">' + val + '</td></tr>' );
 	};
-	backend.getStatistics(function(err, result) {
+    /**
+    Required results:
+    numtests
+    noerrors
+    noskips
+    nofails
+    latestcommit
+    crashes
+    beforelatestcommit
+    numfixes
+    numreg
+    **/
+    var fakecommit = new Buffer("0b5db8b91bfdeb0a304b372dd8dda123b3fd1ab6");
+	backend.getStatistics(fakecommit, function(err, result) {
 	  var tests = result.numtests;
 	  var errorLess = result.noerrors;
 	  var skipLess = result.noskips;
@@ -274,40 +287,31 @@ var failsWebInterface = function ( req, res ) {
     var page = ( req.params[0] || 0 ) - 0,
         offset = page * 40;
 
-    backend.getFails(offset, 40, function(results) {
-        //   object {
-        //     commit: <commit hash>,
-        //     prefix: <prefix>,
-        //     title:  <title>
-        //     status: <status> // 'perfect', 'skip', 'fail', or null
-        //     skips:  <skip count>,
-        //     fails:  <fails count>,
-        //     errors: <errors count>
-        //     }
-        //]
-        for (var i = 0; i < results.length; i++) {
-            results[i].pageTitleData = {
-                // foobar
-            };
-            results[i].commitLinkData = {
-                url: 'foo',
-                name: results[i].commit.substr(0,7)
-            };
-        }
+    backend.getTopFails(offset, page, function(results) {
 
-        var data = {
-            page: page,
-            urlPrefix: '/topfails',
-            uslSuffix: '',
-            headind: 'Results by title',
-            header: ['Title', 'Commit', 'Syntatic diffs', 'Semantic diffs', 'Errors'],
-            paginate: true,
-            row: results,
-            prev: page > 0,
-            next: results.length === 40
-        }
+        // for (var i = 0; i < results.length; i++) {
+        //     results[i].pageTitleData = {
+        //         // foobar
+        //     };
+        //     results[i].commitLinkData = {
+        //         url: 'foo',
+        //         name: results[i].commit.substr(0,7)
+        //     };
+        // }
 
-        res.render('table.html', data);
+        // var data = {
+        //     page: page,
+        //     urlPrefix: '/topfails',
+        //     uslSuffix: '',
+        //     headind: 'Results by title',
+        //     header: ['Title', 'Commit', 'Syntatic diffs', 'Semantic diffs', 'Errors'],
+        //     paginate: true,
+        //     row: results,
+        //     prev: page > 0,
+        //     next: results.length === 40
+        // }
+
+        // res.render('table.html', data);
     });
 };
 

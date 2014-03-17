@@ -105,11 +105,11 @@ function initTestPQ(commitIndex, numTestsLeft, cb) {
  * }
  * @param cb function (err, num) - num is the number of regressions for the last commit
  */
-MockBackend.prototype.getNumRegFix = function (commit, cb) {
-  calcRegressionFixes(function(err, reg, fix) {
-    cb(null, reg.length, fix.length);
-  });
-};
+// MockBackend.prototype.getNumRegFix = function (commit, cb) {
+//   calcRegressionFixes(function(err, reg, fix) {
+//     cb(null, reg.length, fix.length);
+//   });
+// };
 
 
 
@@ -328,31 +328,21 @@ var statsScore = function(skipCount, failCount, errorCount) {
 	return errorCount*1000000+failCount*1000+skipCount;
 };
 
+var calcTopFails = function(cb) {
+
+}
+
 /**
- * Get results ordered by score
+ * Computes everything in the order of top fails first and displays them back to the user
+ * "Everything" includes all commits, old and new
  *
  * @param offset (for pagination)
  * @param limit  (for pagination)
  * @param cb
  *
  */
-MockBackend.prototype.getFails = function(offset, limit, cb) {
+MockBackend.prototype.getTopFails = function(offset, limit, cb) {
 
-    /**
-     * cb
-     *
-     * @param results array [
-     *    object {
-     *      commit: <commit hash>,
-     *      prefix: <prefix>,
-     *      title:  <title>
-     *      status: <status> // 'perfect', 'skip', 'fail', or null
-     *      skips:  <skip count>,
-     *      fails:  <fails count>,
-     *      errors: <errors count>
-     *      }
-     * ]
-     */
     cb([]);
 }
 

@@ -33,3 +33,14 @@ CREATE TABLE IF NOT EXISTS commits (
     keyframe boolean,
     PRIMARY KEY(hash)
 );
+
+-- Store revision/commit summaries so we don't have to calculate everything every time
+-- should i put this in the commits table instead?
+CREATE TABLE IF NOT EXISTS revision_summary (
+    revision blob,
+    errors int,
+    skips int,
+    fails int,
+    numtests int,
+    PRIMARY KEY(revision)
+);

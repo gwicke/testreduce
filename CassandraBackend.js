@@ -212,18 +212,18 @@ CassandraBackend.prototype.updateCommits = function(lastCommitTimestamp, commit,
 CassandraBackend.prototype.getTest = function (clientCommit, clientDate, cb) {
     var retry = this.getTestToRetry(),
         lastCommitTimestamp = this.commits[0].timestamp,
-        retVal = 404;
+        retVal = { error: { code: 'ResourceNotFoundError', messsage: 'No tests to run for this commit'} };
 
     this.updateCommits(lastCommitTimestamp, clientCommit, clientDate);
     if (lastCommitTimestamp > clientDate) {
-        retVal = 426;
+        retVal = { error: { code: 'BadCommitError', message: 'Commit too old' } };
     } else if (retry) {
-        retVal = retry;
+        retVal = { test: retry };
     } else if (this.testQueue.size()) {
         var test = this.testQueue.deq();
         //ID for identifying test, containing title, prefix and oldID.
         this.runningQueue.unshift({test: test, startTime: new Date()});
-        retVal = test.test;
+        retVal = { test : test.test };
     }
     cb(retVal);
 };

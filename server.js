@@ -172,16 +172,17 @@ var getTitle = function ( req, res ) {
     res.setHeader( 'Content-Type', 'text/plain; charset=UTF-8' );
 
     var fetchCb = function(retVal) {
-        switch (retVal)
+        var errorCode = retVal.error ? retVal.error.code : undefined;
+        switch (errorCode)
         {
-            case 404:
+            case 'ResourceNotFoundError':
                 res.send('', 404);
                 break;
-            case 426:
-                res.send('', 426);
+            case 'BadCommitError':
+                res.send('', 400);
                 break;
             default:
-                res.send(retVal, 200);
+                res.send(retVal.test, 200);
                 break;
         }
     };

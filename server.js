@@ -165,22 +165,29 @@ if(settings.backend.type ==="cassandra") {
 /*BEGIN: COORD APP*/
 
 var getTitle = function ( req, res ) {
-    var commitHash = req.query.commit;
-    var commitDate = new Date( req.query.ctime );
-    var knownCommit = knownCommits && knownCommits[ commitHash ];
-    // init backend store reference here?
-    var store = backend;
+    var commitHash = req.query.commit,
+        commitDate = new Date(req.query.ctime),
+        store = backend;
 
     res.setHeader( 'Content-Type', 'text/plain; charset=UTF-8' );
 
-    var fetchCb = function(page) {
-        // NOT IMPLEMENTED YET
-        // 404 and 426 handling will need to be handled based upon backend return value
-        console.log( ' ->', page );
-        res.send( page, 200 );
+    var fetchCb = function(retVal) {
+        var errorCode = retVal.error ? retVal.error.code : undefined;
+        switch (errorCode)
+        {
+            case 'ResourceNotFoundError':
+                res.send('', 404);
+                break;
+            case 'BadCommitError':
+                res.send('', 400);
+                break;
+            default:
+                res.send(retVal.test, 200);
+                break;
+        }
     };
 
-    store.getTest(commitHash, fetchCb);
+    store.getTest(commitHash, commitDate, fetchCb);
 };
 
 var receiveResults = function ( req, res ) {

@@ -75,12 +75,13 @@ function getCommits(cb) {
                 // commit[0].toString()
                 this.commits.push( { hash: commit[0], timestamp: commit[1], isKeyframe: commit[2] } );
             }
+            this.commits.sort( function(a, b) { return b > a } );
             cb(null);
         }
     };
 
     // get commits to tids
-    var cql = 'select hash, tid, keyframe from commits';
+    var cql = 'select hash, dateOf(tid), keyframe from commits';
     this.client.execute(cql, [], this.consistencies.write, queryCB.bind(this));
 }
 
@@ -157,7 +158,7 @@ CassandraBackend.prototype.getNumRegressions = function (commit, cb) {
   cb(null, fakeNum);
 };
 
-function removePassedTest(testName) {
+CassandraBackend.prototype.removePassedTest = function(testName) {
     for (var i = 0; i < this.runningQueue.length; i++) {
         var job = this.runningQueue[i];
         if (job.test === testName) {
@@ -167,7 +168,7 @@ function removePassedTest(testName) {
     }
 };
 
-function getTestToRetry() {
+CassandraBackend.prototype.getTestToRetry = function() {
     for (var i = 0, len = this.runningQueue.length, currTime = new Date(); i < len; i++) {
         var job = this.runningQueue[this.runningQueue.length - 1];
         if ((currTime.getMinutes() - job.startTime.getMinutes()) > 10) {
@@ -185,6 +186,19 @@ function getTestToRetry() {
     return undefined;
 };
 
+CassandraBackend.prototype.updateCommits = function(lastCommitTimestamp, commit, date) {
+    if (lastCommitTimestamp < date) {
+        this.commits.unshift( { hash: commit, timestamp: date, isKeyframe: false } );
+        cql = 'insert into commits (hash, tid, keyframe) values (?, ?, ?);';
+        args = [new Buffer(commit), tidFromDate(date), false];
+        this.client.execute(cql, args, this.consistencies.write, function(err, result) {
+            if (err) {
+                console.log(err);
+            }
+        });
+    }
+}
+
 /**
  * Get the next test to run
  *
@@ -195,19 +209,23 @@ function getTestToRetry() {
  * @param cb function (err, test) with test being an object that serializes to
  * JSON, for example [ 'enwiki', 'some title', 12345 ]
  */
-CassandraBackend.prototype.getTest = function (commit, cb) {
-    var retry = (getTestToRetry.bind(this))();
-    if (retry) {
-        return retry;
+CassandraBackend.prototype.getTest = function (clientCommit, clientDate, cb) {
+    var retry = this.getTestToRetry(),
+        lastCommitTimestamp = this.commits[0].timestamp,
+        retVal = { error: { code: 'ResourceNotFoundError', messsage: 'No tests to run for this commit'} };
+
+    this.updateCommits(lastCommitTimestamp, clientCommit, clientDate);
+    if (lastCommitTimestamp > clientDate) {
+        retVal = { error: { code: 'BadCommitError', message: 'Commit too old' } };
+    } else if (retry) {
+        retVal = { test: retry };
     } else if (this.testQueue.size()) {
         var test = this.testQueue.deq();
         //ID for identifying test, containing title, prefix and oldID.
         this.runningQueue.unshift({test: test, startTime: new Date()});
-
-        cb(test.test);
+        retVal = { test : test.test };
     }
-
-//    cb([ 'enwiki', 'some title', 12345 ]);
+    cb(retVal);
 };
 
 /**
@@ -317,7 +335,7 @@ CassandraBackend.prototype.getStatistics = function(commit, cb) {
  * @param cb callback (err) err or null
  */
 CassandraBackend.prototype.addResult = function(test, commit, result, cb) {
-    (removePassedTest.bind(this))(test);
+    this.removePassedTest(test);
     cql = 'insert into results (test, tid, result) values (?, ?, ?);';
     args = [test, tidFromDate(new Date()), result];
     this.client.execute(cql, args, this.consistencies.write, function(err, result) {
@@ -326,48 +344,6 @@ CassandraBackend.prototype.addResult = function(test, commit, result, cb) {
         } else {
         }
     });
-    // logic to clear timeouts needs to go here
-    // clearTimeout(this.runningTokens[test]);
-    // var tid = commit.timestamp; // fix
-
-    // var skipCount = result.match( /<skipped/g ),
-    //         failCount = result.match( /<failure/g ),
-    //         errorCount = result.match( /<error/g );
-
-    // // Build up the CQL
-    // // Simple revison table insertion only for now
-    // var cql = 'BEGIN BATCH ',
-    //     args = [],
-    // score = statsScore(skipCount, failCount, errorCount);
-
-    // // Insert into results
-    // cql += 'insert into results (test, tid, result)' +
-    //             'values(?, ?, ?);\n';
-    // args = args.concat([
-    //         test,
-    //         tid,
-    //         result
-    //     ]);
-
-    // // Check if test score changed
-    // if (testScores[test] == score) {
-    //     // If changed, update test_by_score
-    //     cq += 'insert into test_by_score (commit, score, test)' +
-    //                 'values(?, ?, ?);\n';
-    //     args = args.concat([
-    //             commit,
-    //             score,
-    //             test
-    //         ]);
-
-    //     // Update scores in memory;
-    //     testScores[test] = score;
-    // }
-    // // And finish it off
-    // cql += 'APPLY BATCH;';
-
-    // this.client.execute(cql, args, this.consistencies.write, cb);
-
 }
 
 var statsScore = function(skipCount, failCount, errorCount) {

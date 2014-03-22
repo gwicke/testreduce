@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 import json
 import requests
 import glob
@@ -32,12 +34,12 @@ for article_list in files_to_parse:
                 successes += 1
             except KeyError:
                 print resp_json
-                failed_objects.append({'prefix': lang + 'wiki', 'title': title})
+                failed_objects.append(url)
                 failures += 1
             except requests.ConnectionError:
-                print url
+                failed_objects.append(url)
         with open(output_file_name, 'w') as output_file:
             output_file.write(json.dumps(output_objects))
-with open('failures.json', 'w') as failures:
+with open('failures.txt', 'w') as failures:
     failures.write(json.dumps(failed_objects))
 print "successes: %d, failures: %d" % (successes, failures)

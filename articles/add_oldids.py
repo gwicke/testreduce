@@ -41,5 +41,6 @@ for article_list in files_to_parse:
         with open(output_file_name, 'w') as output_file:
             output_file.write(json.dumps(output_objects))
 with open('failures.txt', 'w') as failure_file:
-    failure_file.write(json.dumps(failed_objects))
+    for failure_url in failed_objects:
+        failure_file.write(failure_url + "\n")
 print "successes: %d, failures: %d" % (successes, failures)

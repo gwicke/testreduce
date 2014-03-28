@@ -49,9 +49,11 @@ function CassandraBackend(name, config, callback) {
     self.runningQueue = [];
     self.testsList = {};
     self.testScores = [];
+    this.topFailsArray = [];
 
     // Load all the tests from Cassandra - do this when we see a new commit hash
-    async.waterfall([getCommits.bind( this ), getTests.bind( this ), initTestPQ.bind( this )], function(err) {
+    async.waterfall([getCommits.bind( this ), getTests.bind( this ), initTestPQ.bind( this ), 
+            initTopFails.bind(this), topFailsCB.bind(this)], function(err) {
         if (err) {
             console.log( 'failure in setup', err );
         }
@@ -116,7 +118,7 @@ function initTestPQ(commitIndex, numTestsLeft, cb) {
             console.log('in error init test PQ');
             cb(err);
         } else if (!results || !results.rows || results.rows.length === 0) {
-            cb(null);
+            cb(null, 0);
         } else {
             for (var i = 0; i < results.rows.length; i++) {
                 var result = results.rows[i];
@@ -125,12 +127,45 @@ function initTestPQ(commitIndex, numTestsLeft, cb) {
             }
 
             if (numTestsLeft == 0 || this.commits[commitIndex].isSnapshot) {
-                cb(null);
+                cb(null, 0);
             }
 
             if (numTestsLeft - results.rows.length > 0) {
                 var redo = initTestPQ.bind( this );
                 redo( commitIndex + 1, numTestsLeft - results.rows.length, cb);
+            }
+            cb(null, 0);
+        }
+    };
+    var lastCommit = this.commits[commitIndex].hash;
+        lastHash = lastCommit && lastCommit.hash || '';
+    if (!lastHash) {
+      cb(null, 0);
+    }
+    var cql = 'select test, score, commit from test_by_score where commit = ?';
+    
+
+    this.client.execute(cql, [lastCommit], this.consistencies.write, queryCB.bind( this ));
+}
+
+function initTopFails(commitIndex, cb) {
+    var queryCB = function (err, results) {
+        if (err) {
+            console.log('in error init top fails');
+            cb(err);
+        } else if (!results || !results.rows || results.rows.length === 0) {
+            cb(null);
+        } else {
+            for (var i = 0; i < results.rows.length; i++) {
+                var result = results.rows[i];
+                if (this.topFailsArray[result[0]] == null || this.topFailsArray[result[0]].score <= result[1]) {
+                    this.topFailsArray[result[0]] =  { test: result[0], score: result[1], commit: result[2].toString()};
+                }
+            }
+
+            if (commitIndex < this.commits.size()) {
+                var redo = initTopFails.bind( this );
+                redo( commitIndex + 1, cb);
             }
             cb(null);
         }
@@ -144,6 +179,14 @@ function initTestPQ(commitIndex, numTestsLeft, cb) {
     
 
     this.client.execute(cql, [lastCommit], this.consistencies.write, queryCB.bind( this ));
+}
+
+function topFailsCB(cb) {
+    for (var test in topFailsArray) this.topFails.push(this.topFailsArray[test]);
+    this.topFails.sort(function(a, b) {
+        return b.score > a.score;
+    });
+    cb(null);
 }
 
 /**
@@ -370,9 +413,13 @@ CassandraBackend.prototype.addResult = function(test, commit, result, cb) {
     }
 
     // Update topFails
-    topFails[test].score = score;
-    topFails.sort(function(a, b) { return b.score > a.score } );
-
+    for (var i = 0; i < this.topFails.length; i++) {
+        if (this.topFails[i].test == test && this.topFails[i].score <= score) {
+            this.topFails[i].score = score;
+            this.topFails[i].commit = commit;
+        }
+    }
+    this.topFails.sort(function(a, b) { return b.score > a.score } );
 }
 
 var statsScore = function(skipCount, failCount, errorCount) {

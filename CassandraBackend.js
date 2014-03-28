@@ -48,6 +48,7 @@ function CassandraBackend(name, config, callback) {
     self.testQueue = new PriorityQueue( function(a, b) { return a.score - b.score; } );
     self.runningQueue = [];
     self.testsList = {};
+    self.testScores = [];
 
     // Load all the tests from Cassandra - do this when we see a new commit hash
     async.waterfall([getCommits.bind( this ), getTests.bind( this ), initTestPQ.bind( this )], function(err) {
@@ -120,6 +121,7 @@ function initTestPQ(commitIndex, numTestsLeft, cb) {
             for (var i = 0; i < results.rows.length; i++) {
                 var result = results.rows[i];
                 this.testQueue.enq( { test: result[0], score: result[1], commit: result[2].toString(), failCount: 0 } );
+                this.testScores[result[0]] = result[1];
             }
 
             if (numTestsLeft == 0 || this.commits[commitIndex].isSnapshot) {
@@ -344,6 +346,33 @@ CassandraBackend.prototype.addResult = function(test, commit, result, cb) {
         } else {
         }
     });
+
+    var skipCount = result.match( /<skipped/g ),
+        failCount = result.match( /<failure/g ),
+        errorCount = result.match( /<error/g );
+
+    var score = statsScore(skipCount, failCount, errorCount);
+
+    // Check if test score changed
+    if (testScores[test] != score) {
+        // If changed, update test_by_score
+        cql = 'insert into test_by_score (commit, score, test) values (?, ?, ?);';
+        args = [commit, score, test];
+
+        this.client.execute(cql, args, this.consistencies.write, function(err, result) {
+            if (err) {
+                console.log(err);
+            } else {
+                // Update scores in memory;
+                testScores[test] = score;
+            }
+        });
+    }
+
+    // Update topFails
+    topFails[test].score = score;
+    topFails.sort(function(a, b) { return b.score > a.score } );
+
 }
 
 var statsScore = function(skipCount, failCount, errorCount) {
@@ -360,7 +389,7 @@ var statsScore = function(skipCount, failCount, errorCount) {
  * @param cb
  *
  */
-CassandraBackend.prototype.getFails = function(offset, limit, cb) {
+CassandraBackend.prototype.getTopFails = function(offset, limit, cb) {
 
     /**
      * cb
@@ -368,16 +397,40 @@ CassandraBackend.prototype.getFails = function(offset, limit, cb) {
      * @param results array [
      *    object {
      *      commit: <commit hash>,
-     *      prefix: <prefix>,
-     *      title:  <title>
-     *      status: <status> // 'perfect', 'skip', 'fail', or null
+     *      test: <test blob>,
      *      skips:  <skip count>,
      *      fails:  <fails count>,
      *      errors: <errors count>
      *      }
      * ]
      */
-    cb([]);
+
+    var results = [];
+    for (var i = offset; i < limit; i++) {
+        var current = topFails[i];
+        var score = current.score;
+
+        var errorsCount = score % 1000000;
+        score = score - errorsCount * 1000000;
+        var failsCount = score % 1000;
+        score = score - failsCount * 1000;
+        var skipsCount = score; 
+                
+        if ( skipsCount === 0 && failsCount === 0 && errorsCount === 0 ) {
+            return 'perfect';
+        } else if ( errors_count > 0 || failsCount > 0 ) {
+            return 'fail';
+        } else {
+            return 'skip';
+        }
+
+        var result = {
+            commit: current.commit, test: current.test, skips: skipsCount,
+            fails: failsCount, errors: errorsCount
+        }
+        results.push(result);
+    }  
+    cb(results);
 }
 
 // Node.js module exports. This defines what

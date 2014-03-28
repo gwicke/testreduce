@@ -296,29 +296,27 @@ var failsWebInterface = function ( req, res ) {
 
     backend.getTopFails(offset, page, function(results) {
 
-        // for (var i = 0; i < results.length; i++) {
-        //     results[i].pageTitleData = {
-        //         // foobar
-        //     };
-        //     results[i].commitLinkData = {
-        //         url: 'foo',
-        //         name: results[i].commit.substr(0,7)
-        //     };
-        // }
+        for (var i = 0; i < results.length; i++) {
+            results[i].pageTitleData = pageTitleData(results[i]);
+            results[i].commitLinkData = commitLinkData(
+                results[i].commit, results[i].pageTitleData.title, 
+                results[i].pageTitleData.prefix);
+            results[i].status = pageStatus(results[i]);
+        }
 
-        // var data = {
-        //     page: page,
-        //     urlPrefix: '/topfails',
-        //     uslSuffix: '',
-        //     headind: 'Results by title',
-        //     header: ['Title', 'Commit', 'Syntatic diffs', 'Semantic diffs', 'Errors'],
-        //     paginate: true,
-        //     row: results,
-        //     prev: page > 0,
-        //     next: results.length === 40
-        // }
+        var data = {
+            page: page,
+            urlPrefix: '/topfails',
+            uslSuffix: '',
+            headind: 'Results by title',
+            header: ['Title', 'Commit', 'Syntatic diffs', 'Semantic diffs', 'Errors'],
+            paginate: true,
+            row: results,
+            prev: page > 0,
+            next: results.length === 40
+        }
 
-        // res.render('table.html', data);
+        res.render('table.html', data);
     });
 };
 
@@ -463,6 +461,7 @@ var pageTitleData = function(row){
     var prefix = encodeURIComponent( parsed.prefix ),
     title = encodeURIComponent( parsed.title );
     return {
+        prefix: parsed.prefix,
         title: parsed.prefix + ':' + parsed.title,
         titleUrl: 'http://parsoid.wmflabs.org/_rt/' + prefix + '/' + title,
         lh: 'http://localhost:8000/_rt/' + prefix + '/' + title,

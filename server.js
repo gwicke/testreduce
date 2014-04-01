@@ -370,6 +370,7 @@ var GET_regressions = function( req, res ) {
     /*put this in mock later */
 
     backend.getRegressions(r1, r2, urlPrefix, page, function(err, data, info) {
+      if(err) return res.end(JSON.stringify(err,null,'\t'));
       var rows = data;
 
       // console.log("passing: " + JSON.stringify(rows, null ,'\t'));

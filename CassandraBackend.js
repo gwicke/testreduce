@@ -54,7 +54,7 @@ function CassandraBackend(name, config, callback) {
     self.topFailsArray = [];
 
     // Load all the tests from Cassandra - do this when we see a new commit hash
-    async.waterfall([getCommits.bind(this), getTests.bind(this), initTestPQ.bind(this)], function (err) {
+    async.waterfall([getCommits.bind(this), getTests.bind(this), initTestPQ.bind(this), initTopFails.bind(this)], function (err) {
         if (err) {
             console.log('failure in setup', err);
         }
@@ -65,7 +65,10 @@ function CassandraBackend(name, config, callback) {
 }
 
 // cb is getTests
-//I did insert into commits (hash, tid, keyframe) values (textAsBlob('0b5db8b91bfdeb0a304b372dd8dda123b3fd1ab6'), d0602570-b52b-11e3-a5e2-0800200c9a66, true);
+
+//I did :
+// insert into commits (hash, tid, keyframe) values (textAsBlob('0b5db8b91bfdeb0a304b372dd8dda123b3fd1ab6'), 5b89fc70-ba95-11e3-a5e2-0800200c9a66, true);
+// insert into commits (hash, tid, keyframe) values (textAsBlob('bdb14fbe076f6b94444c660e36a400151f26fc6f'), d0602570-b52b-11e3-a5e2-0800200c9a66, true);
 function getCommits(cb) {
     var queryCB = function (err, results) {
         if (err) {
@@ -121,6 +124,8 @@ function getTests(cb) {
     this.client.execute(cql, [], this.consistencies.write, queryCB.bind(this));
 }
 
+//note to the person doing inittestpq, this function will call cb(null) twice
+//the line after checking if we have no tests left 
 function initTestPQ(commitIndex, numTestsLeft, cb) {
     var queryCB = function (err, results) {
         if (err) {
@@ -139,7 +144,7 @@ function initTestPQ(commitIndex, numTestsLeft, cb) {
                 });
             }
             if (numTestsLeft == 0 || this.commits[commitIndex].isSnapshot) {
-                cb(null);
+                return cb(null);
             }
 
             if (numTestsLeft - results.rows.length > 0) {
@@ -168,31 +173,64 @@ function initTopFails(cb) {
             console.log('in error init top fails');
             cb(err);
         } else if (!results || !results.rows || results.rows.length === 0) {
+            console.log("no results found")
             cb(null);
         } else {
             for (var i = 0; i < results.rows.length; i++) {
                 var result = results.rows[i];
-                if (this.topFailsArray[result[0]] == null || this.topFailsArray[result[0]].score <= result[1]) {
-                    this.topFailsArray[result[0]] =  { test: result[0], score: result[1], commit: result[2].toString()};
+                var index = findWithAttr(this.topFailsArray, "test", result[0]);
+                if (index === -1 || this.topFailsArray === undefined ) {
+                    this.topFailsArray.push({ test: result[0], score: result[1], commit: result[2].toString()});
+                } else if(this.topFailsArray[index].score <= result[1]) {
+                    this.topFailsArray[index] ={ test: result[0], score: result[1], commit: result[2].toString()};
                 }
             }
 
-            if (commitIndex < this.commits.size()) {
+            this.commitFails++;
+            if (this.commitFails < this.commits.length) {
                 var redo = initTopFails.bind( this );
-                redo( commitIndex + 1, cb);
+                redo(cb);
+            } else { 
+              //console.log("finished!: " + JSON.stringify(this.topFailsArray, null,'\t'));
+              async.sortBy(this.topFailsArray, function(fail, callback) {
+                callback(null, -1*fail.score);
+              }, function(err, results) {
+                //console.log("results: " + JSON.stringify(results, null,'\t'))
+                cb(null);
+              })
             }
-            cb(null);
         }
     };
-    var lastCommit = this.commits[commitIndex].hash;
+    this.commitFails = (this.commitFails !== undefined) ? this.commitFails :  0;
+    //console.log("this.commits[0]: " + this.commitFails + "is "  + JSON.stringify(this.commits[0]));
+    
+    if(!this.commits[this.commitFails]) {
+        //console.log("finished!: " + this.commitFails + "stuff: " + JSON.stringify(this.topFailsArray, null,'\t'));
+        return cb(null);
+    }
+    var lastCommit = this.commits[this.commitFails].hash;
         lastHash = lastCommit && lastCommit.hash || '';
-    if (!lastHash) {
-      cb(null);
+    //console.log("commit table: " + JSON.stringify(this.commits, null,'\t'));
+    if (!lastCommit) {
+      var error = "no last commit";
+      //console.log("no last commit");
+      cb(error);
     }
     var cql = 'select test, score, commit from test_by_score where commit = ?';
     
 
     this.client.execute(cql, [lastCommit], this.consistencies.write, queryCB.bind( this ));
+}
+
+function findWithAttr(array, attr, value) {
+    for(var i = 0; i < array.length; i++) {
+        //console.log("finding: " + typeof(array[i].test) + " comparing: " + typeof(value));
+        if(array[i][attr].toString() === value.toString()) {
+            //console.log("found!")
+            return i;
+        }
+    }
+    return -1;
 }
 
 /**
@@ -378,7 +416,7 @@ CassandraBackend.prototype.getStatistics = function (commit, cb) {
     insert into test_by_score (commit, delta, test, score) values (textAsBlob('0b5db8b91bfdeb0a304b372dd8dda123b3fd1ab6'), 0, textAsBlob('{"prefix": "enwiki", "title": "\"Aghnadarragh\""}'), 10739);
     
     insert into test_by_score (commit, delta, test, score) values (textAsBlob('bdb14fbe076f6b94444c660e36a400151f26fc6f'), 0, textAsBlob('{"prefix": "enwiki", "title": "\"Slonowice_railway_station\""}'), 10500);
-    insert into test_by_score (commit, delta, test, score) values (textAsBlob('bdb14fbe076f6b94444c660e36a400151f26fc6f'), 0, textAsBlob('{"prefix": "enwiki", "title": "\"Salfoeld\""}'), 0);
+    insert into test_by_score (commit, delta, test, score) values (textAsBlob('bdb14fbe076f6b94444c660e36a400151f26fc6f'), 0, textAsBlob('{"prefix": "enwiki", "title": "\"Salfoeld\""}'), 1050);
     insert into test_by_score (commit, delta, test, score) values (textAsBlob('bdb14fbe076f6b94444c660e36a400151f26fc6f'), 0, textAsBlob('{"prefix": "enwiki", "title": "\"Aghnadarragh\""}'), 100);
      */
 

@@ -54,11 +54,14 @@ function CassandraBackend(name, config, callback) {
     self.topFailsArray = [];
 
     // Load all the tests from Cassandra - do this when we see a new commit hash
-    async.waterfall([getCommits.bind(this), getTests.bind(this), initTestPQ.bind(this), initTopFails.bind(this)], function (err) {
+    async.waterfall([getCommits.bind(this), getTests.bind(this), initTestPQ.bind(this), initTopFails.bind(this)], function (err, result) {
         if (err) {
             console.log('failure in setup', err);
         }
         console.log('in memory queue setup complete');
+        self.topFailsArray.sort(function(a,b){return b.score - a.score});
+        //console.log("res: " + JSON.stringify(result,null,'\t'));
+
     });
 
     callback();
@@ -149,7 +152,7 @@ function initTestPQ(commitIndex, numTestsLeft, cb) {
 
             if (numTestsLeft - results.rows.length > 0) {
                 var redo = initTestPQ.bind(this);
-                redo(commitIndex + 1, numTestsLeft - results.rows.length, cb);
+                return redo(commitIndex + 1, numTestsLeft - results.rows.length, cb);
             }
             cb(null);
         }
@@ -191,13 +194,7 @@ function initTopFails(cb) {
                 var redo = initTopFails.bind( this );
                 redo(cb);
             } else { 
-              //console.log("finished!: " + JSON.stringify(this.topFailsArray, null,'\t'));
-              async.sortBy(this.topFailsArray, function(fail, callback) {
-                callback(null, -1*fail.score);
-              }, function(err, results) {
-                //console.log("results: " + JSON.stringify(results, null,'\t'))
-                cb(null);
-              })
+              cb(null, this.topFailsArray);
             }
         }
     };
@@ -206,6 +203,7 @@ function initTopFails(cb) {
     
     if(!this.commits[this.commitFails]) {
         //console.log("finished!: " + this.commitFails + "stuff: " + JSON.stringify(this.topFailsArray, null,'\t'));
+        console.log("ran out of commits??")
         return cb(null);
     }
     var lastCommit = this.commits[this.commitFails].hash;
@@ -231,6 +229,15 @@ function findWithAttr(array, attr, value) {
         }
     }
     return -1;
+}
+
+CassandraBackend.prototype.getTFArray = function(cb) {
+    if(!this.topFailsArray || this.topFailsArray.length === 0) {
+        return cb("empty or nonexistent array");
+    } else {
+    
+        return cb(null, this.topFailsArray);
+    }
 }
 
 /**
@@ -360,7 +367,7 @@ CassandraBackend.prototype.getNumRegFix = function(cb) {
         reg: 0,
         fix: 0
       }
-      console.log("data: " + JSON.stringify(data,null,'\t'));
+      //console.log("data: " + JSON.stringify(data,null,'\t'));
       for(var y in data) {
         if(data[y][0] > 0) {
             res.reg++;

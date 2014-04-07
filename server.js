@@ -191,8 +191,8 @@ var getTitle = function ( req, res ) {
 };
 
 var receiveResults = function ( req, res ) {
-    var test = new Buffer(JSON.stringify({title: req.params[0], prefix: req.params[1], oldid: 42}));
-    backend.addResult(test, req.body.commit, req.body.results);
+    var test = new Buffer(JSON.stringify({prefix: req.params[1], title: req.params[0], oldid: 42}));
+    backend.addResult(test, new Buffer(req.body.commit), req.body.results);
     res.end( 'receive results not implemented yet' );
 };
 /*END: COORD APP*/
@@ -294,14 +294,20 @@ var failsWebInterface = function ( req, res ) {
     var page = ( req.params[0] || 0 ) - 0,
         offset = page * 40;
 
-    backend.getTopFails(offset, page, function(results) {
-
+    backend.getTopFails(offset, 40, function(results) {
+        var tableRows = [];
         for (var i = 0; i < results.length; i++) {
-            results[i].pageTitleData = pageTitleData(results[i]);
-            results[i].commitLinkData = commitLinkData(
-                results[i].commit, results[i].pageTitleData.title, 
-                results[i].pageTitleData.prefix);
-            results[i].status = pageStatus(results[i]);
+            var row = results[i];
+            console.log(row);
+            var rowPagetitleData = pageTitleData(row);
+            var tableData = [
+                rowPagetitleData,
+                commitLinkData(row.commit.toString(), rowPagetitleData.title, rowPagetitleData.prefix),
+                row.skips,
+                row.fails,
+                row.errors];
+            var tableRow = {status: pageStatus(row), tableData: tableData};
+            tableRows.push(tableRow);
         }
 
         var data = {
@@ -311,14 +317,22 @@ var failsWebInterface = function ( req, res ) {
             headind: 'Results by title',
             header: ['Title', 'Commit', 'Syntatic diffs', 'Semantic diffs', 'Errors'],
             paginate: true,
-            row: results,
+            row: tableRows,
             prev: page > 0,
             next: results.length === 40
         }
 
+        hbs.registerHelper('prevUrl', function (urlPrefix, urlSuffix, page) {
+            return urlPrefix + "/" + ( page - 1 );
+        });
+        hbs.registerHelper('nextUrl', function (urlPrefix, urlSuffix, page) {
+            return urlPrefix + "/" + ( page + 1 );
+        });
+
         res.render('table.html', data);
     });
 };
+
 
 var resultsWebInterface = function ( req, res ) {
     res.write('<html><body>\n');

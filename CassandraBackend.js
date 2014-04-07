@@ -1,10 +1,10 @@
 var util = require('util'),
-  events = require('events'),
-  cass = require('node-cassandra-cql'),
-  consistencies = cass.types.consistencies,
-  uuid = require('node-uuid'),
-  PriorityQueue = require('priorityqueuejs'),
-  async = require('async');
+    events = require('events'),
+    cass = require('node-cassandra-cql'),
+    consistencies = cass.types.consistencies,
+    uuid = require('node-uuid'),
+    PriorityQueue = require('priorityqueuejs'),
+    async = require('async');
 
 function tidFromDate(date) {
     // Create a new, deterministic timestamp
@@ -31,7 +31,7 @@ function CassandraBackend(name, config, callback) {
 
     self.client = new cass.Client(config.backend.options);
 
-    var reconnectCB = function(err) {
+    var reconnectCB = function (err) {
         if (err) {
             // keep trying each 500ms
             console.error('pool connection error, scheduling retry!');
@@ -45,25 +45,31 @@ function CassandraBackend(name, config, callback) {
 
     self.commits = [];
 
-    self.testQueue = new PriorityQueue( function(a, b) { return a.score - b.score; } );
+    self.testQueue = new PriorityQueue(function (a, b) {
+        return a.score - b.score;
+    });
     self.runningQueue = [];
     self.testsList = {};
+    self.latestRevision = {};
     self.testScores = [];
-    this.topFailsArray = [];
+    self.topFailsArray = [];
 
     // Load all the tests from Cassandra - do this when we see a new commit hash
-    async.waterfall([getCommits.bind( this ), getTests.bind( this ), initTestPQ.bind( this ), 
-            initTopFails.bind(this), topFailsCB.bind(this)], function(err) {
+    async.waterfall([getCommits.bind(this), getTests.bind(this), initTestPQ.bind(this), initTopFails.bind(this)], function (err) {
         if (err) {
-            console.log( 'failure in setup', err );
+            console.log('failure in setup', err);
         }
-        console.log( 'in memory queue setup complete' );
+        console.log('in memory queue setup complete');
     });
 
     callback();
 }
 
 // cb is getTests
+
+//I did :
+// insert into commits (hash, tid, keyframe) values (textAsBlob('0b5db8b91bfdeb0a304b372dd8dda123b3fd1ab6'), 5b89fc70-ba95-11e3-a5e2-0800200c9a66, true);
+// insert into commits (hash, tid, keyframe) values (textAsBlob('bdb14fbe076f6b94444c660e36a400151f26fc6f'), d0602570-b52b-11e3-a5e2-0800200c9a66, true);
 function getCommits(cb) {
     var queryCB = function (err, results) {
         if (err) {
@@ -76,9 +82,16 @@ function getCommits(cb) {
                 var commit = results.rows[i];
                 // commits are currently saved as blobs, we shouldn't call toString on them...
                 // commit[0].toString()
-                this.commits.push( { hash: commit[0], timestamp: commit[1], isKeyframe: commit[2] } );
+                this.commits.push({
+                    hash: commit[0],
+                    timestamp: commit[1],
+                    isKeyframe: commit[2]
+                });
             }
-            this.commits.sort( function(a, b) { return b > a } );
+            this.commits.sort(function (a, b) {
+                return b > a
+            });
+            //console.log("commits: " + JSON.stringify(this.commits, null,'\t'));
             cb(null);
         }
     };
@@ -94,7 +107,7 @@ function getTests(cb) {
         if (err) {
             cb(err);
         } else if (!results || !results.rows) {
-            console.log( 'no seen commits, error in database' );
+            console.log('no seen commits, error in database');
             cb(null, 0, 0);
         } else {
             // I'm not sure we need to have this, but it exists for now till we decide not to have it.
@@ -109,71 +122,102 @@ function getTests(cb) {
     var cql = 'select test from tests;';
 
     // And finish it off
-    this.client.execute(cql, [], this.consistencies.write, queryCB.bind( this ));
+    this.client.execute(cql, [], this.consistencies.write, queryCB.bind(this));
 }
 
+//note to the person doing inittestpq, this function will call cb(null) twice
+//the line after checking if we have no tests left 
 function initTestPQ(commitIndex, numTestsLeft, cb) {
     var queryCB = function (err, results) {
         if (err) {
             console.log('in error init test PQ');
             cb(err);
         } else if (!results || !results.rows || results.rows.length === 0) {
-            cb(null, 0);
+            console.log("no tests");
+
+            cb(null);
         } else {
             for (var i = 0; i < results.rows.length; i++) {
                 var result = results.rows[i];
-                this.testQueue.enq( { test: result[0], score: result[1], commit: result[2].toString(), failCount: 0 } );
-                this.testScores[result[0]] = result[1];
+                this.testQueue.enq({
+                    test: result[0],
+                    score: result[1],
+                    commit: result[2].toString(),
+                    failCount: 0
+                });
+                this.testScores[result[0].toString()] = result[1];
             }
-
             if (numTestsLeft == 0 || this.commits[commitIndex].isSnapshot) {
-                cb(null, 0);
+                return cb(null);
             }
 
             if (numTestsLeft - results.rows.length > 0) {
-                var redo = initTestPQ.bind( this );
-                redo( commitIndex + 1, numTestsLeft - results.rows.length, cb);
+                var redo = initTestPQ.bind(this);
+                redo(commitIndex + 1, numTestsLeft - results.rows.length, cb);
             }
-            cb(null, 0);
+            cb(null);
         }
     };
     var lastCommit = this.commits[commitIndex].hash;
-        lastHash = lastCommit && lastCommit.hash || '';
-    if (!lastHash) {
-      cb(null, 0);
+    lastHash = lastCommit && lastCommit.hash || '';
+    this.latestRevision.commit = lastCommit;
+    //console.log("lastcommit: " + lastCommit + " lasthash: " + lastHash );
+    if (!lastCommit) {
+        cb(null);
     }
     var cql = 'select test, score, commit from test_by_score where commit = ?';
-    
 
-    this.client.execute(cql, [lastCommit], this.consistencies.write, queryCB.bind( this ));
+    this.client.execute(cql, [lastCommit], this.consistencies.write, queryCB.bind(this));
 }
 
-function initTopFails(commitIndex, cb) {
+function initTopFails(cb) {
     var queryCB = function (err, results) {
         if (err) {
             console.log('in error init top fails');
             cb(err);
         } else if (!results || !results.rows || results.rows.length === 0) {
+            console.log("no results found in initTopFails")
             cb(null);
         } else {
             for (var i = 0; i < results.rows.length; i++) {
                 var result = results.rows[i];
-                if (this.topFailsArray[result[0]] == null || this.topFailsArray[result[0]].score <= result[1]) {
-                    this.topFailsArray[result[0]] =  { test: result[0], score: result[1], commit: result[2].toString()};
+                var index = findWithAttr(this.topFailsArray, "test", result[0]);
+                if (index === -1 || this.topFailsArray === undefined ) {
+                    this.topFailsArray.push({ test: result[0], score: result[1], commit: result[2].toString()});
+                } else if(this.topFailsArray[index].score <= result[1]) {
+                    this.topFailsArray[index] ={ test: result[0], score: result[1], commit: result[2].toString()};
                 }
             }
 
-            if (commitIndex < this.commits.size()) {
+            this.commitFails++;
+            if (this.commitFails < this.commits.length) {
                 var redo = initTopFails.bind( this );
-                redo( commitIndex + 1, cb);
+                redo(cb);
+            } else { 
+              //console.log("finished!: " + JSON.stringify(this.topFailsArray, null,'\t'));
+              async.sortBy(this.topFailsArray, function(fail, callback) {
+                callback(null, -1*fail.score);
+              }, function(err, results) {
+                //console.log("results: " + JSON.stringify(results, null,'\t'))
+                cb(null);
+              })
             }
-            cb(null);
         }
     };
-    var lastCommit = this.commits[commitIndex].hash;
+    this.commitFails = (this.commitFails !== undefined) ? this.commitFails :  0;
+    //console.log("this.commits[0]: " + this.commitFails + "is "  + JSON.stringify(this.commits[0]));
+    
+    if(!this.commits[this.commitFails]) {
+        //console.log("finished!: " + this.commitFails + "stuff: " + JSON.stringify(this.topFailsArray, null,'\t'));
+        return cb(null);
+    }
+    var lastCommit = this.commits[this.commitFails].hash;
         lastHash = lastCommit && lastCommit.hash || '';
-    if (!lastHash) {
-      cb(null);
+    //console.log("commit table: " + JSON.stringify(this.commits, null,'\t'));
+    if (!lastCommit) {
+      var error = "no last commit";
+      //console.log("no last commit");
+      cb(error);
     }
     var cql = 'select test, score, commit from test_by_score where commit = ?';
     
@@ -181,12 +225,15 @@ function initTopFails(commitIndex, cb) {
     this.client.execute(cql, [lastCommit], this.consistencies.write, queryCB.bind( this ));
 }
 
-function topFailsCB(cb) {
-    for (var test in topFailsArray) this.topFails.push(this.topFailsArray[test]);
-    this.topFails.sort(function(a, b) {
-        return b.score > a.score;
-    });
-    cb(null);
+function findWithAttr(array, attr, value) {
+    for(var i = 0; i < array.length; i++) {
+        //console.log("finding: " + typeof(array[i].test) + " comparing: " + typeof(value));
+        if(array[i][attr].toString() === value.toString()) {
+            // console.log("found!")
+            return i;
+        }
+    }
+    return -1;
 }
 
 /**
@@ -199,11 +246,11 @@ function topFailsCB(cb) {
  * @param cb function (err, num) - num is the number of regressions for the last commit
  */
 CassandraBackend.prototype.getNumRegressions = function (commit, cb) {
-  var fakeNum = 3;
-  cb(null, fakeNum);
+    var fakeNum = 3;
+    cb(null, fakeNum);
 };
 
-CassandraBackend.prototype.removePassedTest = function(testName) {
+CassandraBackend.prototype.removePassedTest = function (testName) {
     for (var i = 0; i < this.runningQueue.length; i++) {
         var job = this.runningQueue[i];
         if (job.test === testName) {
@@ -380,6 +427,7 @@ CassandraBackend.prototype.getStatistics = function(commit, cb) {
  * @param cb callback (err) err or null
  */
 CassandraBackend.prototype.addResult = function(test, commit, result, cb) {
+
     this.removePassedTest(test);
     cql = 'insert into results (test, tid, result) values (?, ?, ?);';
     args = [test, tidFromDate(new Date()), result];
@@ -390,36 +438,42 @@ CassandraBackend.prototype.addResult = function(test, commit, result, cb) {
         }
     });
 
-    var skipCount = result.match( /<skipped/g ),
-        failCount = result.match( /<failure/g ),
-        errorCount = result.match( /<error/g );
+    var skipCount = (result.match( /<skipped/g ) || []).length,
+        failCount = (result.match( /<failure/g ) || []).length,
+        errorCount = (result.match( /<error/g ) || []).length; 
 
     var score = statsScore(skipCount, failCount, errorCount);
 
     // Check if test score changed
-    if (testScores[test] != score) {
+    if (this.testScores[test.toString()] != score) {
         // If changed, update test_by_score
-        cql = 'insert into test_by_score (commit, score, test) values (?, ?, ?);';
-        args = [commit, score, test];
-
+        cql = 'insert into test_by_score (commit, score, delta, test) values (?, ?, ?, ?);';
+        // args = [commit, score, this.testScores[test] - score, test];
+        args = [commit, score, 0, test];
+        
         this.client.execute(cql, args, this.consistencies.write, function(err, result) {
             if (err) {
                 console.log(err);
             } else {
-                // Update scores in memory;
-                testScores[test] = score;
             }
         });
+        // Update scores in memory;
+        this.testScores[test.toString()] = score;
     }
 
     // Update topFails
-    for (var i = 0; i < this.topFails.length; i++) {
-        if (this.topFails[i].test == test && this.topFails[i].score <= score) {
-            this.topFails[i].score = score;
-            this.topFails[i].commit = commit;
-        }
+    var index = findWithAttr(this.topFailsArray, "test", test);
+    if (index != -1 && this.topFailsArray[index].score <= score) {
+        this.topFailsArray[index].score = score;
+        this.topFailsArray[index].commit = commit;
+       // console.log("updated score");
     }
-    this.topFails.sort(function(a, b) { return b.score > a.score } );
+
+    this.topFailsArray.sort(function(a, b) { return b.score - a.score;} );
+
+    for (var i = 0; i < this.topFailsArray.length; i++) {
+        console.log(this.topFailsArray[i].score);
+    }
 }
 
 var statsScore = function(skipCount, failCount, errorCount) {
@@ -437,7 +491,6 @@ var statsScore = function(skipCount, failCount, errorCount) {
  *
  */
 CassandraBackend.prototype.getTopFails = function(offset, limit, cb) {
-
     /**
      * cb
      *
@@ -453,23 +506,22 @@ CassandraBackend.prototype.getTopFails = function(offset, limit, cb) {
      */
 
     var results = [];
-    for (var i = offset; i < limit; i++) {
-        var current = topFails[i];
+    for (var i = offset; i < limit + offset; i++) {
+        var current = this.topFailsArray[i];
         var score = current.score;
 
-        var errorsCount = score % 1000000;
-        score = score - errorsCount * 1000000;
-        var failsCount = score % 1000;
+        console.log("score:" );
+        console.log(score);
+
+        var skipsCount = score % 1000;
+        score = score - skipsCount;
+        var failsCount = (score % 1000000) / 1000;
         score = score - failsCount * 1000;
-        var skipsCount = score; 
-                
-        if ( skipsCount === 0 && failsCount === 0 && errorsCount === 0 ) {
-            return 'perfect';
-        } else if ( errors_count > 0 || failsCount > 0 ) {
-            return 'fail';
-        } else {
-            return 'skip';
-        }
+        var errorsCount = score / 1000000;
+
+        console.log("errors: " + errorsCount);
+        console.log("fails: " + failsCount);
+        console.log("skips: " + skipsCount);
 
         var result = {
             commit: current.commit, test: current.test, skips: skipsCount,

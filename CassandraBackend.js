@@ -470,10 +470,6 @@ CassandraBackend.prototype.addResult = function(test, commit, result, cb) {
     }
 
     this.topFailsArray.sort(function(a, b) { return b.score - a.score;} );
-
-    for (var i = 0; i < this.topFailsArray.length; i++) {
-        console.log(this.topFailsArray[i].score);
-    }
 }
 
 var statsScore = function(skipCount, failCount, errorCount) {

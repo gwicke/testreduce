@@ -506,8 +506,8 @@ CassandraBackend.prototype.getTopFails = function(offset, limit, cb) {
         var current = this.topFailsArray[i];
         var score = current.score;
 
-        console.log("score:" );
-        console.log(score);
+        // console.log("score:" );
+        // console.log(score);
 
         var skipsCount = score % 1000;
         score = score - skipsCount;
@@ -515,9 +515,9 @@ CassandraBackend.prototype.getTopFails = function(offset, limit, cb) {
         score = score - failsCount * 1000;
         var errorsCount = score / 1000000;
 
-        console.log("errors: " + errorsCount);
-        console.log("fails: " + failsCount);
-        console.log("skips: " + skipsCount);
+        // console.log("errors: " + errorsCount);
+        // console.log("fails: " + failsCount);
+        // console.log("skips: " + skipsCount);
 
         var result = {
             commit: current.commit, test: current.test, skips: skipsCount,

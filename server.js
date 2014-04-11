@@ -360,14 +360,40 @@ var GET_crashers = function( req, res ) {
 
 var GET_failsDistr = function( req, res ) {
     res.write('<html><body>\n');
-    res.write('Distribution of semantic errors go here');
-    res.end('</body></html>');
+    res.write('<h1>Distribution of semantic errors</h1>');
+    var fakecommit = new Buffer("0b5db8b91bfdeb0a304b372dd8dda123b3fd1ab6");
+    backend.getFailsDistr(fakecommit, function(err, result) {
+        res.write( '<table><tr style="font-weight:bold"><td style="padding-left:20px;">' + '# errors' );
+        res.write( '</td><td style="padding-left:20px;">' + '#pages' + '</td></tr>' );
+        // console.log(result.fails);
+        for (var key in result.fails) {
+            res.write( '<tr><td style="padding-left:20px;">' + key );
+            res.write( '</td><td style="padding-left:20px;">' + result.fails[key] + '</td></tr>' );
+        }
+
+
+        res.end('</table></body></html>');
+
+    });
 };
 
 var GET_skipsDistr = function( req, res ) {
     res.write('<html><body>\n');
-    res.write('Distribution of syntactic errors go here');
-    res.end('</body></html>');
+    res.write('<h1>Distribution of syntactic errors</h1>');
+    var fakecommit = new Buffer("0b5db8b91bfdeb0a304b372dd8dda123b3fd1ab6");
+    backend.getSkipsDistr(fakecommit, function(err, result) {
+        res.write( '<table><tr style="font-weight:bold"><td style="padding-left:20px;">' + '# errors' );
+        res.write( '</td><td style="padding-left:20px;">' + '#pages' + '</td></tr>' );
+        // console.log(result.fails);
+        for (var key in result.skips) {
+            res.write( '<tr><td style="padding-left:20px;">' + key );
+            res.write( '</td><td style="padding-left:20px;">' + result.skips[key] + '</td></tr>' );
+        }
+
+
+        res.end('</table></body></html>');
+
+    });
 };
 
 

@@ -558,6 +558,82 @@ CassandraBackend.prototype.getTopFails = function(offset, limit, cb) {
     cb(results);
 }
 
+CassandraBackend.prototype.getFailsDistr = function(commit, cb) {
+    var args = [], 
+    results = {};
+
+    var cql = "select score from test_by_score where commit = ?"
+    args = args.concat([commit]);
+    this.client.execute(cql, args, this.consistencies.write, function(err, results) {
+        if (err) {
+            console.log("err: " + err);
+            cb(err);
+        } else if (!results || !results.rows) {
+            console.log( 'no seen commits, error in database' );
+            cb(null);
+        } else {
+            //console.log("hooray we have data!: " + JSON.stringify(results, null,'\t'));
+            var fails = {};
+            async.each(results.rows, function(item, callback) {
+                //console.log("item: " + JSON.stringify(item, null,'\t'));
+                var data = item[0];
+                var counts = countScore(data);
+                if (!fails[counts.fails]) {
+                    fails[counts.fails] = 1;
+                } else {
+                    fails[counts.fails]++;
+                }
+                callback();
+            }, function(err) {
+                results = {
+                    fails: fails
+                };
+                console.log("result: " + JSON.stringify(results, null,'\t'));
+                cb(null, results);
+
+            });
+        }
+    });    
+}
+
+CassandraBackend.prototype.getSkipsDistr = function(commit, cb) {
+    var args = [], 
+    results = {};
+
+    var cql = "select score from test_by_score where commit = ?"
+    args = args.concat([commit]);
+    this.client.execute(cql, args, this.consistencies.write, function(err, results) {
+        if (err) {
+            console.log("err: " + err);
+            cb(err);
+        } else if (!results || !results.rows) {
+            console.log( 'no seen commits, error in database' );
+            cb(null);
+        } else {
+            //console.log("hooray we have data!: " + JSON.stringify(results, null,'\t'));
+            var skips = {};
+            async.each(results.rows, function(item, callback) {
+                //console.log("item: " + JSON.stringify(item, null,'\t'));
+                var data = item[0];
+                var counts = countScore(data);
+                if (!skips[counts.skips]) {
+                    skips[counts.skips] = 1;
+                } else {
+                    skips[counts.skips]++;
+                }
+                callback();
+            }, function(err) {
+                results = {
+                    skips: skips
+                };
+                console.log("result: " + JSON.stringify(results, null,'\t'));
+                cb(null, results);
+
+            });
+        }
+    });    
+}
+
 // Node.js module exports. This defines what
 // require('./CassandraBackend.js'); evaluates to.
 module.exports = CassandraBackend;

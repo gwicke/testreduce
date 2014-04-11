@@ -288,6 +288,16 @@ CassandraBackend.prototype.updateCommits = function(lastCommitTimestamp, commit,
                 console.log(err);
             }
         });
+
+        this.getStatistics(new Buffer(commit), function (err, result) {
+            cql = 'insert into revision_summary (revision, errors, skips, fails, numtests) values (?, ? , ? , ?, ?);';
+            args = [new Buffer(commit), result.averages.errors, result.averages.skips, result.averages.fails, result.averages.numtests];
+            this.client.execute(cql, args, this.consistencies.write, function(err, result) {
+                if (err) {
+                    console.log(err);
+                }
+            });
+        });
     }
 }
 
@@ -380,6 +390,8 @@ CassandraBackend.prototype.getStatistics = function(commit, cb) {
         } else {
             //console.log("hooray we have data!: " + JSON.stringify(results, null,'\t'));
             var noerrors = 0, nofails = 0, noskips = 0;
+            var errors = 0, fails = 0, skips = 0;
+            var totalscore = 0;
             var numtests = results.rows.length;
             async.each(results.rows, function(item, callback) {
                 //console.log("item: " + JSON.stringify(item, null,'\t'));
@@ -395,15 +407,28 @@ CassandraBackend.prototype.getStatistics = function(commit, cb) {
                     noerrors++;
                     nofails++;
                   }
-                }
+                } 
+                var counts = countScore(data);
+                errors += counts.errors;
+                fails += counts.fails;
+                skips += counts.skips;
+                totalscore += data;
                 callback();
             }, function(err) {
+                var averages = {
+                    errors: errors / numtests,
+                    fails: fails / numtests,
+                    skips: skips / numtests, 
+                    score: totalscore / numtests,
+                    numtests: numtests
+                }
                 results = {
                     numtests: numtests,
                     noerrors: noerrors,
                     noskips: noskips,
                     nofails: nofails,
-                    latestcommit: commit.toString()
+                    latestcommit: commit.toString(),
+                    averages: averages
                 };
                 console.log("result: " + JSON.stringify(results, null,'\t'));
                 cb(null, results);
@@ -478,6 +503,16 @@ var statsScore = function(skipCount, failCount, errorCount) {
     return errorCount*1000000+failCount*1000+skipCount;
 };
 
+var countScore = function(score) {
+    var skipsCount = score % 1000;
+    score = score - skipsCount;
+    var failsCount = (score % 1000000) / 1000;
+    score = score - failsCount * 1000;
+    var errorsCount = score / 1000000;    
+    
+    return {skips: skipsCount, fails: failsCount, errors: errorsCount}
+};
+
 /**
  * Get results ordered by score
  *
@@ -508,20 +543,15 @@ CassandraBackend.prototype.getTopFails = function(offset, limit, cb) {
 
         // console.log("score:" );
         // console.log(score);
-
-        var skipsCount = score % 1000;
-        score = score - skipsCount;
-        var failsCount = (score % 1000000) / 1000;
-        score = score - failsCount * 1000;
-        var errorsCount = score / 1000000;
+        var counts = countScore(score);
 
         // console.log("errors: " + errorsCount);
         // console.log("fails: " + failsCount);
         // console.log("skips: " + skipsCount);
 
         var result = {
-            commit: current.commit, test: current.test, skips: skipsCount,
-            fails: failsCount, errors: errorsCount
+            commit: current.commit, test: current.test, skips: counts.skips,
+            fails: counts.fails, errors: counts.errors
         }
         results.push(result);
     }  

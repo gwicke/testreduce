@@ -280,10 +280,10 @@ var statsWebInterface = function ( req, res ) {
 
 	  res.write( '<p>Averages (over the latest results):' );
 	  res.write( '<table><tbody>');
-	  // displayRow(res, "Errors", result.averages.errors);
-	  // displayRow(res, "Fails", result.averages.fails);
-	  // displayRow(res, "Skips", result.averages.skips);
-	  // displayRow(res, "Score", result.averages.scores);
+	  displayRow(res, "Errors", result.averages.errors);
+	  displayRow(res, "Fails", result.averages.fails);
+	  displayRow(res, "Skips", result.averages.skips);
+	  displayRow(res, "Score", result.averages.score);
 	  res.write( '</tbody></table></p>' );
 	  res.write( indexLinkList() );
 	  res.end('</body></html>');
@@ -298,7 +298,7 @@ var failsWebInterface = function ( req, res ) {
         var tableRows = [];
         for (var i = 0; i < results.length; i++) {
             var row = results[i];
-            console.log(row);
+            // console.log(row);
             var rowPagetitleData = pageTitleData(row);
             var tableData = [
                 rowPagetitleData,

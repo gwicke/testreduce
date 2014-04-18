@@ -122,7 +122,7 @@ function initTestPQ(commitIndex, numTestsLeft, cb) {
                 this.testQueue.enq( { test: result[0], score: result[1], commit: result[2].toString(), failCount: 0 } );
             }
 
-            if (numTestsLeft == 0 || this.commits[commitIndex].isSnapshot) {
+            if (numTestsLeft == 0 || this.commits[commitIndex].isKeyframe) {
                 cb(null);
             }
 

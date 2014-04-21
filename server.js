@@ -505,9 +505,10 @@ var TESTGET_tfArray = function(req, res) {
     console.log("page: " + page + " numperPage: " + numperpage);
 
     backend.getTFArray(function(err, result) {
+        console.log("result: " + result[0]);
         res.end(JSON.stringify({
             err: err,
-            array: result.splice(numperpage*page, numperpage*(page+1))
+            array: result.slice(numperpage*page, numperpage*(page+1))
         }))
     })
 }

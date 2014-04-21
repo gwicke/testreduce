@@ -11,7 +11,7 @@ var cql = require('node-cassandra-cql'),
     client = new cql.Client(options);
 
 var argv = require('optimist')
-           .usage('Usage: node cassandraImport.js prefix where prefix = ar, sv... etc')
+           .usage('Usage: node importCassandra.js prefix where prefix = ar, sv... etc')
            .demand(1)
            .argv;
 

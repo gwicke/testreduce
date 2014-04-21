@@ -53,8 +53,9 @@ function CassandraBackend(name, config, callback) {
     self.latestRevision = {};
     self.topFailsArray = [];
 
+    self.tasks =[getCommits.bind(this), getTests.bind(this), initTestPQ.bind(this), initTopFails.bind(this)]; 
     // Load all the tests from Cassandra - do this when we see a new commit hash
-    async.waterfall([getCommits.bind(this), getTests.bind(this), initTestPQ.bind(this), initTopFails.bind(this)], function (err, result) {
+    async.waterfall(self.tasks, function (err, result) {
         if (err) {
             console.log('failure in setup', err);
         }
@@ -146,8 +147,9 @@ function initTestPQ(commitIndex, numTestsLeft, cb) {
                     failCount: 0
                 });
             }
-            if (numTestsLeft == 0 || this.commits[commitIndex].isSnapshot) {
-                return cb(null);
+
+            if (numTestsLeft == 0 || this.commits[commitIndex].isKeyframe) {
+                cb(null);
             }
 
             if (numTestsLeft - results.rows.length > 0) {
@@ -158,7 +160,6 @@ function initTestPQ(commitIndex, numTestsLeft, cb) {
         }
     };
     var lastCommit = this.commits[commitIndex].hash;
-    lastHash = lastCommit && lastCommit.hash || '';
     this.latestRevision.commit = lastCommit;
     //console.log("lastcommit: " + lastCommit + " lasthash: " + lastHash );
     if (!lastCommit) {

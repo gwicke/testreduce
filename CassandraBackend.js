@@ -492,9 +492,8 @@ CassandraBackend.prototype.addResult = function(test, commit, result, cb) {
         this.topFailsArray[index].score = score;
         this.topFailsArray[index].commit = commit;
        // console.log("updated score");
+        this.topFailsArray.sort(function(a, b) { return b.score - a.score;} );
     }
-
-    this.topFailsArray.sort(function(a, b) { return b.score - a.score;} );
 }
 
 var statsScore = function(skipCount, failCount, errorCount) {
@@ -574,8 +573,7 @@ CassandraBackend.prototype.getFailsDistr = function(commit, cb) {
         } else {
             //console.log("hooray we have data!: " + JSON.stringify(results, null,'\t'));
             var fails = {};
-            async.each(results.rows, function(item, callback) {
-                //console.log("item: " + JSON.stringify(item, null,'\t'));
+            results.rows.forEach(function(item) {
                 var data = item[0];
                 var counts = countScore(data);
                 if (!fails[counts.fails]) {
@@ -583,15 +581,9 @@ CassandraBackend.prototype.getFailsDistr = function(commit, cb) {
                 } else {
                     fails[counts.fails]++;
                 }
-                callback();
-            }, function(err) {
-                results = {
-                    fails: fails
-                };
-                console.log("result: " + JSON.stringify(results, null,'\t'));
-                cb(null, results);
-
             });
+            results = {fails: fails};
+            cb(null, results);
         }
     });    
 }
@@ -612,7 +604,7 @@ CassandraBackend.prototype.getSkipsDistr = function(commit, cb) {
         } else {
             //console.log("hooray we have data!: " + JSON.stringify(results, null,'\t'));
             var skips = {};
-            async.each(results.rows, function(item, callback) {
+            results.rows.forEach(function(item) {
                 //console.log("item: " + JSON.stringify(item, null,'\t'));
                 var data = item[0];
                 var counts = countScore(data);
@@ -621,15 +613,10 @@ CassandraBackend.prototype.getSkipsDistr = function(commit, cb) {
                 } else {
                     skips[counts.skips]++;
                 }
-                callback();
-            }, function(err) {
-                results = {
-                    skips: skips
-                };
-                console.log("result: " + JSON.stringify(results, null,'\t'));
-                cb(null, results);
-
             });
+
+            results = { skips: skips };
+            cb(null, results);
         }
     });    
 }

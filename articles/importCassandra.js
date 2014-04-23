@@ -11,7 +11,7 @@ var cql = require('node-cassandra-cql'),
     client = new cql.Client(options);
 
 var argv = require('optimist')
-           .usage('Usage: node cassandraImport.js prefix where prefix = ar, sv... etc')
+           .usage('Usage: node importCassandra.js prefix where prefix = ar, sv... etc')
            .demand(1)
            .argv;
 
@@ -34,6 +34,7 @@ var insertTestBlob = function(prefix, title) {
 };
 
 var insertTestByScore = function(prefix, title) {
+    console.log("insert called on testbyscore")
     var query = "insert into test_by_score (commit, delta, test, score) values (?, ?, ?, ?);",
         commit = new Buffer(DUMMYCOMMIT),
         delta = 0,

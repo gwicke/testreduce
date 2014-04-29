@@ -189,6 +189,7 @@ MockBackend.prototype.getStatistics = function(cb) {
     });
 }
 
+
 /**
  * getRegressionRows mock method returns the mock data of the fake regressions
  */

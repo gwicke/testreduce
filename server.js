@@ -229,8 +229,10 @@ var statsWebInterface = function ( req, res ) {
     numfixes
     numreg
     **/
-    var fakecommit = new Buffer("0b5db8b91bfdeb0a304b372dd8dda123b3fd1ab6");
-	backend.getStatistics(fakecommit, function(err, result) {
+
+
+	backend.getStatistics(function(err, result) {
+      if(err) return res.end("There's an error or lack of commit or testbyscore data: " + err);
 	  var tests = result.numtests;
 	  var errorLess = result.noerrors;
 	  var skipLess = result.noskips;

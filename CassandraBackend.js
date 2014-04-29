@@ -55,7 +55,7 @@ function CassandraBackend(name, config, callback) {
     self.topFailsArray = [];
     self.testByScoreToCommit =[]; 
 
-    self.tasks =[getCommits.bind(this), getTests.bind(this), initTestPQ.bind(this) /*, initTopFails.bind(this)*/]; 
+    self.tasks =[getCommits.bind(this), getTests.bind(this), initTestPQ.bind(this) , initTopFails.bind(this)]; 
     // Load all the tests from Cassandra - do this when we see a new commit hash
 
     async.waterfall(self.tasks, function (err, result) {
@@ -407,7 +407,7 @@ CassandraBackend.prototype.getNumRegFix = function(cb) {
 
 
  */
- 
+
 CassandraBackend.prototype.getStatistics = function (cb) {
     var getRegFixes = this.getNumRegFix.bind(this);
     var generateStatsCB = function (err, results) {
@@ -517,31 +517,9 @@ CassandraBackend.prototype.getStatistics = function (cb) {
             else {
                 var results = {};
                 results.rows = self.testByScoreToCommit;
-                var numtests = results.rows.length;
-                getRegFixes(function (err, data) {
-                    extractESF(results.rows, function (err, ESFdata) {
-                        var averages = {
-                            errors: ESFdata.errors / numtests,
-                            fails: ESFdata.fails / numtests,
-                            skips: ESFdata.skips / numtests,
-                            score: ESFdata.totalscore / numtests,
-                            numtests: numtests
-                        }
-
-                        var results = {
-                            numtests: numtests,
-                            noerrors: ESFdata.noerrors,
-                            noskips: ESFdata.noskips,
-                            nofails: ESFdata.nofails,
-                            latestcommit: commit.toString(),
-                            beforelatestcommit: sndToLastCommit,
-                            numReg: data.reg,
-                            numFixes: data.fix,
-                            averages: averages
-                        }
-                        cb(null, results);
-                    });
-                });
+                var noQueryGen = generateStatsCB.bind(self);
+                console.log("no additional query needed");                
+                return noQueryGen(null, results);
             }
             //var results = {};
         }

@@ -342,8 +342,48 @@ var calcTopFails = function(cb) {
  *
  */
 MockBackend.prototype.getTopFails = function(offset, limit, cb) {
+    /**
+     * cb
+     *
+     * @param results array [
+     *    object {
+     *      commit: <commit hash>,
+     *      prefix: <prefix>,
+     *      title:  <title>
+     *      status: <status> // 'perfect', 'skip', 'fail', or null
+     *      skips:  <skip count>,
+     *      fails:  <fails count>,
+     *      errors: <errors count>
+     *      }
+     * ]
+     */
 
-    cb([]);
+    var results = [];
+    for (var i = offset; i < limit; i++) {
+        var current = topFails[i];
+        var score = current.score;
+
+        var errorsCount = score % 1000000;
+        score = score - errorsCount * 1000000;
+        var failsCount = score % 1000;
+        score = score - failsCount * 1000;
+        var skipsCount = score; 
+                
+        if ( skipsCount === 0 && failsCount === 0 && errorsCount === 0 ) {
+            return 'perfect';
+        } else if ( errors_count > 0 || failsCount > 0 ) {
+            return 'fail';
+        } else {
+            return 'skip';
+        }
+
+        var result = {
+            commit: current.commit, prefix: current.test.prefix, title: current.test.title, status: status, skips: skipsCount,
+            fails: failsCount, errors: errorsCount
+        }
+        results.append(result);
+    }  
+    cb(results);
 }
 
 

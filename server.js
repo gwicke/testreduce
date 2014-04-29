@@ -191,8 +191,8 @@ var getTitle = function ( req, res ) {
 };
 
 var receiveResults = function ( req, res ) {
-    var test = new Buffer(JSON.stringify({title: req.params[0], prefix: req.params[1], oldid: 42}));
-    backend.addResult(test, req.body.commit, req.body.results);
+    var test = new Buffer(JSON.stringify({prefix: req.params[1], title: req.params[0], oldid: 42}));
+    backend.addResult(test, new Buffer(req.body.commit), req.body.results);
     res.end( 'receive results not implemented yet' );
 };
 /*END: COORD APP*/
@@ -280,10 +280,10 @@ var statsWebInterface = function ( req, res ) {
 
 	  res.write( '<p>Averages (over the latest results):' );
 	  res.write( '<table><tbody>');
-	  // displayRow(res, "Errors", result.averages.errors);
-	  // displayRow(res, "Fails", result.averages.fails);
-	  // displayRow(res, "Skips", result.averages.skips);
-	  // displayRow(res, "Score", result.averages.scores);
+	  displayRow(res, "Errors", result.averages.errors);
+	  displayRow(res, "Fails", result.averages.fails);
+	  displayRow(res, "Skips", result.averages.skips);
+	  displayRow(res, "Score", result.averages.score);
 	  res.write( '</tbody></table></p>' );
 	  res.write( indexLinkList() );
 	  res.end('</body></html>');
@@ -294,33 +294,45 @@ var failsWebInterface = function ( req, res ) {
     var page = ( req.params[0] || 0 ) - 0,
         offset = page * 40;
 
-    backend.getTopFails(offset, page, function(results) {
+    backend.getTopFails(offset, 40, function(results) {
+        var tableRows = [];
+        for (var i = 0; i < results.length; i++) {
+            var row = results[i];
+            // console.log(row);
+            var rowPagetitleData = pageTitleData(row);
+            var tableData = [
+                rowPagetitleData,
+                commitLinkData(row.commit.toString(), rowPagetitleData.title, rowPagetitleData.prefix),
+                row.skips,
+                row.fails,
+                row.errors];
+            var tableRow = {status: pageStatus(row), tableData: tableData};
+            tableRows.push(tableRow);
+        }
 
-        // for (var i = 0; i < results.length; i++) {
-        //     results[i].pageTitleData = {
-        //         // foobar
-        //     };
-        //     results[i].commitLinkData = {
-        //         url: 'foo',
-        //         name: results[i].commit.substr(0,7)
-        //     };
-        // }
+        var data = {
+            page: page,
+            urlPrefix: '/topfails',
+            uslSuffix: '',
+            headind: 'Results by title',
+            header: ['Title', 'Commit', 'Syntatic diffs', 'Semantic diffs', 'Errors'],
+            paginate: true,
+            row: tableRows,
+            prev: page > 0,
+            next: results.length === 40
+        }
 
-        // var data = {
-        //     page: page,
-        //     urlPrefix: '/topfails',
-        //     uslSuffix: '',
-        //     headind: 'Results by title',
-        //     header: ['Title', 'Commit', 'Syntatic diffs', 'Semantic diffs', 'Errors'],
-        //     paginate: true,
-        //     row: results,
-        //     prev: page > 0,
-        //     next: results.length === 40
-        // }
+        hbs.registerHelper('prevUrl', function (urlPrefix, urlSuffix, page) {
+            return urlPrefix + "/" + ( page - 1 );
+        });
+        hbs.registerHelper('nextUrl', function (urlPrefix, urlSuffix, page) {
+            return urlPrefix + "/" + ( page + 1 );
+        });
 
-        // res.render('table.html', data);
+        res.render('table.html', data);
     });
 };
+
 
 var resultsWebInterface = function ( req, res ) {
     res.write('<html><body>\n');
@@ -348,14 +360,40 @@ var GET_crashers = function( req, res ) {
 
 var GET_failsDistr = function( req, res ) {
     res.write('<html><body>\n');
-    res.write('Distribution of semantic errors go here');
-    res.end('</body></html>');
+    res.write('<h1>Distribution of semantic errors</h1>');
+    var fakecommit = new Buffer("0b5db8b91bfdeb0a304b372dd8dda123b3fd1ab6");
+    backend.getFailsDistr(fakecommit, function(err, result) {
+        res.write( '<table><tr style="font-weight:bold"><td style="padding-left:20px;">' + '# errors' );
+        res.write( '</td><td style="padding-left:20px;">' + '#pages' + '</td></tr>' );
+        // console.log(result.fails);
+        for (var key in result.fails) {
+            res.write( '<tr><td style="padding-left:20px;">' + key );
+            res.write( '</td><td style="padding-left:20px;">' + result.fails[key] + '</td></tr>' );
+        }
+
+
+        res.end('</table></body></html>');
+
+    });
 };
 
 var GET_skipsDistr = function( req, res ) {
     res.write('<html><body>\n');
-    res.write('Distribution of syntactic errors go here');
-    res.end('</body></html>');
+    res.write('<h1>Distribution of syntactic errors</h1>');
+    var fakecommit = new Buffer("0b5db8b91bfdeb0a304b372dd8dda123b3fd1ab6");
+    backend.getSkipsDistr(fakecommit, function(err, result) {
+        res.write( '<table><tr style="font-weight:bold"><td style="padding-left:20px;">' + '# errors' );
+        res.write( '</td><td style="padding-left:20px;">' + '#pages' + '</td></tr>' );
+        // console.log(result.fails);
+        for (var key in result.skips) {
+            res.write( '<tr><td style="padding-left:20px;">' + key );
+            res.write( '</td><td style="padding-left:20px;">' + result.skips[key] + '</td></tr>' );
+        }
+
+
+        res.end('</table></body></html>');
+
+    });
 };
 
 
@@ -464,6 +502,7 @@ var pageTitleData = function(row){
     var prefix = encodeURIComponent( parsed.prefix ),
     title = encodeURIComponent( parsed.title );
     return {
+        prefix: parsed.prefix,
         title: parsed.prefix + ':' + parsed.title,
         titleUrl: 'http://parsoid.wmflabs.org/_rt/' + prefix + '/' + title,
         lh: 'http://localhost:8000/_rt/' + prefix + '/' + title,

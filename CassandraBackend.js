@@ -54,7 +54,7 @@ function CassandraBackend(name, config, callback) {
     self.testScores = [];
     self.topFailsArray = [];
 
-    self.tasks =[getCommits.bind(this), getTests.bind(this), initTestPQ.bind(this), initTopFails.bind(this)]; 
+    self.tasks =[getCommits.bind(this), getTests.bind(this), initTestPQ.bind(this), initTopFails.bind(this)];
     // Load all the tests from Cassandra - do this when we see a new commit hash
 
     async.waterfall(self.tasks, function (err, result) {
@@ -79,7 +79,7 @@ function getCommits(cb) {
     var queryCB = function (err, results) {
         if (err) {
             cb(err);
-        } else if (!results || !results.rows || results.rows.length === 0) {
+        } else if (!results || !results.rows) {
             //console.log( 'no seen commits, error in database' );
             cb("no seen commits, error in database");
         } else {
@@ -112,7 +112,7 @@ function getTests(cb) {
         if (err) {
             cb(err);
         } else if (!results || !results.rows) {
-            console.log('no seen commits, error in database');
+            console.log('no seen commits');
             cb(null, 0, 0);
         } else {
             // I'm not sure we need to have this, but it exists for now till we decide not to have it.
@@ -131,7 +131,7 @@ function getTests(cb) {
 }
 
 //note to the person doing inittestpq, this function will call cb(null) twice
-//the line after checking if we have no tests left 
+//the line after checking if we have no tests left
 function initTestPQ(commitIndex, numTestsLeft, cb) {
     var queryCB = function (err, results) {
         if (err) {
@@ -164,12 +164,12 @@ function initTestPQ(commitIndex, numTestsLeft, cb) {
             cb(null);
         }
     };
-    var lastCommit = this.commits[commitIndex].hash;
+    var lastCommit = this.commits[commitIndex] && this.commits[commitIndex].hash;
 
     this.latestRevision.commit = lastCommit;
     //console.log("lastcommit: " + lastCommit + " lasthash: " + lastHash );
     if (!lastCommit) {
-        cb(null);
+        return cb(null);
     }
     var cql = 'select test, score, commit from test_by_score where commit = ?';
 
@@ -177,6 +177,9 @@ function initTestPQ(commitIndex, numTestsLeft, cb) {
 }
 
 function initTopFails(cb) {
+	if (!this.commits.length) {
+		return cb(null);
+	}
     var queryCB = function (err, results) {
         if (err) {
             console.log('in error init top fails');
@@ -199,14 +202,14 @@ function initTopFails(cb) {
             if (this.commitFails < this.commits.length) {
                 var redo = initTopFails.bind( this );
                 redo(cb);
-            } else { 
+            } else {
               cb(null, this.topFailsArray);
             }
         }
     };
     this.commitFails = (this.commitFails !== undefined) ? this.commitFails :  0;
     //console.log("this.commits[0]: " + this.commitFails + "is "  + JSON.stringify(this.commits[0]));
-    
+
     if(!this.commits[this.commitFails]) {
         //console.log("finished!: " + this.commitFails + "stuff: " + JSON.stringify(this.topFailsArray, null,'\t'));
         console.log("ran out of commits??")
@@ -221,7 +224,7 @@ function initTopFails(cb) {
       cb(error);
     }
     var cql = 'select test, score, commit from test_by_score where commit = ?';
-    
+
 
     this.client.execute(cql, [lastCommit], this.consistencies.write, queryCB.bind( this ));
 }
@@ -241,7 +244,7 @@ CassandraBackend.prototype.getTFArray = function(cb) {
     if(!this.topFailsArray || this.topFailsArray.length === 0) {
         return cb("empty or nonexistent array");
     } else {
-    
+
         return cb(null, this.topFailsArray);
     }
 }
@@ -401,7 +404,7 @@ CassandraBackend.prototype.getNumRegFix = function(cb) {
  *
  * @param cb- (err, result), result is defined below
  *
-    
+
 
 
  */
@@ -410,7 +413,7 @@ CassandraBackend.prototype.getStatistics = function (commit, cb) {
     /**
      * @param result
      *  Required results:
-        numtests-  
+        numtests-
         noerrors- numtests - ()
         noskips- ()
         nofails
@@ -423,21 +426,21 @@ CassandraBackend.prototype.getStatistics = function (commit, cb) {
 
     how to compute a commit summary just by test_by_scores
     1) use a commit and search through all test_by_scores
-    2) compute the amount of errors, skips, and fails 
+    2) compute the amount of errors, skips, and fails
     num tests = num quered
         - Go through each, and for every tests
           If(score == 0) then noerrors++ ; nofails++; noskips++;
           else IF(score > 1000000) -> do nothing
-          else If(score > 1000) (it's a fail = noerrors++) 
-          else If(score > 0 ) (it's a skip = noerrors++; no fails++) 
-    3) We have latest commit, num tests and For now, 
+          else If(score > 1000) (it's a fail = noerrors++)
+          else If(score > 0 ) (it's a skip = noerrors++; no fails++)
+    3) We have latest commit, num tests and For now,
     just mock the data for numreg, numfixes, and crashes and latest commit
 
 
     insert into test_by_score (commit, delta, test, score) values (textAsBlob('0b5db8b91bfdeb0a304b372dd8dda123b3fd1ab6'), 0, textAsBlob('{"prefix": "enwiki", "title": "\"Slonowice_railway_station\""}'), 28487);
     insert into test_by_score (commit, delta, test, score) values (textAsBlob('0b5db8b91bfdeb0a304b372dd8dda123b3fd1ab6'), 0, textAsBlob('{"prefix": "enwiki", "title": "\"Salfoeld\""}'), 192);
     insert into test_by_score (commit, delta, test, score) values (textAsBlob('0b5db8b91bfdeb0a304b372dd8dda123b3fd1ab6'), 0, textAsBlob('{"prefix": "enwiki", "title": "\"Aghnadarragh\""}'), 10739);
-    
+
     insert into test_by_score (commit, delta, test, score) values (textAsBlob('bdb14fbe076f6b94444c660e36a400151f26fc6f'), 0, textAsBlob('{"prefix": "enwiki", "title": "\"Slonowice_railway_station\""}'), 10500);
     insert into test_by_score (commit, delta, test, score) values (textAsBlob('bdb14fbe076f6b94444c660e36a400151f26fc6f'), 0, textAsBlob('{"prefix": "enwiki", "title": "\"Salfoeld\""}'), 1050);
     insert into test_by_score (commit, delta, test, score) values (textAsBlob('bdb14fbe076f6b94444c660e36a400151f26fc6f'), 0, textAsBlob('{"prefix": "enwiki", "title": "\"Aghnadarragh\""}'), 100);
@@ -448,7 +451,7 @@ CassandraBackend.prototype.getStatistics = function (commit, cb) {
         results = {};
 
 
-    //if it's not the latest revision AND latestRevision isn't empty, 
+    //if it's not the latest revision AND latestRevision isn't empty,
     //then we can just look it up in the revision summary table
 
     //else if it's the latest revision, we have to dynamically compute it and then insert
@@ -457,21 +460,41 @@ CassandraBackend.prototype.getStatistics = function (commit, cb) {
 
     var getRegFixes = this.getNumRegFix.bind(this);
     this.client.execute(cql, args, this.consistencies.write, function (err, results) {
+		var averages;
         if (err) {
             console.log("err: " + err);
             cb(err);
         } else if (!results || !results.rows) {
-            console.log('no seen commits, error in database');
+            console.log('no seen commits');
             cb(null);
+		} else if(!results.rows.length) {
+			averages = {
+				errors: 0,
+				fails: 0,
+				skips: 0,
+				score: 0,
+				numtests: numtests
+			};
+			cb (null, {
+                    numtests: numtests,
+                    noerrors: 0,
+                    noskips: 0,
+                    nofails: 0,
+                    latestcommit: 'unavailable',
+                    numReg: 0,
+                    numFixes: 0,
+                    averages: averages
+                });
+
         } else {
             //console.log("hooray we have data!: " + JSON.stringify(results, null,'\t'));
             var numtests = results.rows.length;
             getRegFixes(function(err, data) {
               extractESF(results.rows, function (err, ESFdata) {
-               var averages = {
+               averages = {
                     errors: ESFdata.errors / numtests,
                     fails: ESFdata.fails / numtests,
-                    skips: ESFdata.skips / numtests, 
+                    skips: ESFdata.skips / numtests,
                     score: ESFdata.totalscore / numtests,
                     numtests: numtests
                 }
@@ -566,7 +589,7 @@ CassandraBackend.prototype.addResult = function (test, commit, result, cb) {
 
     var skipCount = (result.match( /<skipped/g ) || []).length,
         failCount = (result.match( /<failure/g ) || []).length,
-        errorCount = (result.match( /<error/g ) || []).length; 
+        errorCount = (result.match( /<error/g ) || []).length;
 
     var score = statsScore(skipCount, failCount, errorCount);
 
@@ -576,7 +599,7 @@ CassandraBackend.prototype.addResult = function (test, commit, result, cb) {
         cql = 'insert into test_by_score (commit, score, delta, test) values (?, ?, ?, ?);';
         // args = [commit, score, this.testScores[test] - score, test];
         args = [commit, score, 0, test];
-        
+
         this.client.execute(cql, args, this.consistencies.write, function(err, result) {
             if (err) {
                 console.log(err);
@@ -608,8 +631,8 @@ var countScore = function(score) {
     score = score - skipsCount;
     var failsCount = (score % 1000000) / 1000;
     score = score - failsCount * 1000;
-    var errorsCount = score / 1000000;    
-    
+    var errorsCount = score / 1000000;
+
     return {skips: skipsCount, fails: failsCount, errors: errorsCount}
 };
 
@@ -655,12 +678,12 @@ CassandraBackend.prototype.getTopFails = function (offset, limit, cb) {
             fails: counts.fails, errors: counts.errors
         }
         results.push(result);
-    }  
+    }
     cb(results);
 }
 
 CassandraBackend.prototype.getFailsDistr = function(commit, cb) {
-    var args = [], 
+    var args = [],
     results = {};
 
     var cql = "select score from test_by_score where commit = ?"
@@ -687,11 +710,11 @@ CassandraBackend.prototype.getFailsDistr = function(commit, cb) {
             results = {fails: fails};
             cb(null, results);
         }
-    });    
+    });
 }
 
 CassandraBackend.prototype.getSkipsDistr = function(commit, cb) {
-    var args = [], 
+    var args = [],
     results = {};
 
     var cql = "select score from test_by_score where commit = ?"
@@ -720,7 +743,7 @@ CassandraBackend.prototype.getSkipsDistr = function(commit, cb) {
             results = { skips: skips };
             cb(null, results);
         }
-    });    
+    });
 }
 
 
@@ -733,7 +756,7 @@ var regressionsHeaderData = ['Title', 'New Commit', 'Errors|Fails|Skips', 'Old C
 var regressionHelper = function(test, score1, score2) {
 
   var res = {
-    test: test, 
+    test: test,
     score1: score1,
     score2: score2,
     errors: 0,
@@ -752,7 +775,7 @@ var regressionHelper = function(test, score1, score2) {
     res.old_errors = Math.floor(score2 / 1000000);
     score2 = score2 - (1000000 * res.old_errors);
   }
-  
+
   if(score1 >= 1000) {
     res.fails = Math.floor(score1 /1000);
     score1 = score1- (1000 * res.fails);
@@ -883,7 +906,7 @@ CassandraBackend.prototype.getRegressions = function (r1, r2, prefix, page, cb) 
                 regressions[i].new_commit = r1;
             }
 
-            
+
             //console.log("json: " + JSON.stringify(regressions, null, '\t'));
 
             cb(null, regressions, mydata);

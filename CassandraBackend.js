@@ -153,7 +153,8 @@ function initTestPQ(commitIndex, numTestsLeft, cb) {
                 this.testScores[result[0].toString()] = result[1];
             }
 
-            if (numTestsLeft == 0 || this.commits[commitIndex].isKeyframe) {
+            if (numTestsLeft == 0 || !this.commits.length
+					|| this.commits[commitIndex].isKeyframe) {
                 cb(null);
             }
 
@@ -169,11 +170,22 @@ function initTestPQ(commitIndex, numTestsLeft, cb) {
     this.latestRevision.commit = lastCommit;
     //console.log("lastcommit: " + lastCommit + " lasthash: " + lastHash );
     if (!lastCommit) {
-        return cb(null);
-    }
-    var cql = 'select test, score, commit from test_by_score where commit = ?';
+		var cql = 'select test from tests',
+			self = this;
 
-    this.client.execute(cql, [lastCommit], this.consistencies.write, queryCB.bind(this));
+		this.client.execute(cql, [lastCommit], this.consistencies.write, function (err, result) {
+			// add score and commit entries
+			result.rows.forEach(function(row) {
+				row[1] = 0; // score
+				row[2] = ''; // commit
+			});
+			queryCB.call(self, err, result);
+		});
+    } else {
+		var cql = 'select test, score, commit from test_by_score where commit = ?';
+
+		this.client.execute(cql, [lastCommit], this.consistencies.write, queryCB.bind(this));
+	}
 }
 
 function initTopFails(cb) {
@@ -330,7 +342,7 @@ CassandraBackend.prototype.updateCommits = function (lastCommitTimestamp, commit
  */
 CassandraBackend.prototype.getTest = function (clientCommit, clientDate, cb) {
     var retry = this.getTestToRetry(),
-        lastCommitTimestamp = this.commits[0].timestamp,
+        lastCommitTimestamp = null,
         retVal = {
             error: {
                 code: 'ResourceNotFoundError',
@@ -338,8 +350,12 @@ CassandraBackend.prototype.getTest = function (clientCommit, clientDate, cb) {
             }
         };
 
-    this.updateCommits(lastCommitTimestamp, clientCommit, clientDate);
-    if (lastCommitTimestamp > clientDate) {
+	if (this.commits.length) {
+		lastCommitTimestamp = this.commits[0].timestamp;
+		this.updateCommits(lastCommitTimestamp, clientCommit, clientDate);
+	}
+
+    if (lastCommitTimestamp && lastCommitTimestamp > clientDate) {
         retVal = {
             error: {
                 code: 'BadCommitError',

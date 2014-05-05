@@ -55,9 +55,10 @@ var loadJSON = function(prefix) {
     for (i = 0; i < titles.length; i++) {
         console.log(prefix, titles[i]);
         insertTestBlob(prefix + 'wiki', titles[i]);
-        insertTestByScore(prefix + 'wiki', titles[i]);
+        //insertTestByScore(prefix + 'wiki', titles[i]);
     }
     console.log('done importing ' + prefix + ' wiki articles');
 };
 
 loadJSON(argv['_'][0]);
+process.exit(0);

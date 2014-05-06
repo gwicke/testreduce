@@ -367,8 +367,16 @@ CassandraBackend.prototype.getTest = function (clientCommit, clientDate, cb) {
 /**
 Computes the number of regression and fixes based on deltas
 **/
-CassandraBackend.prototype.getNumRegFix = function(cb) {
-  var args = [];
+CassandraBackend.prototype.getNumRegFix = function(r1, r2, cb) {
+  var calc = calcRegressionFixes.bind(this);
+  calc(r1, r2, function (err, regressions, fixes) {
+    var res = {
+        reg: regressions.length,
+        fix: fixes.length
+    }
+    cb(null, res);
+  });
+  /*var args = [];
   var cql = "select delta from test_by_score where commit = ?";
   args = args.concat([this.latestRevision.commit]);
 
@@ -395,7 +403,7 @@ CassandraBackend.prototype.getNumRegFix = function(cb) {
       }
       cb(null, res);
     }
-  })
+  })*/
 }
 
 /**
@@ -418,9 +426,9 @@ CassandraBackend.prototype.getStatistics = function (cb) {
                 console.log('no seen commits, error in database');
                 cb(null);
             } else {
-                //console.log("hooray we have data!: " + JSON.stringify(results, null,'\t'));
+                // console.log("hooray we have data!: " + JSON.stringify(results.rows, null,'\t'));
                 var numtests = results.rows.length;
-                getRegFixes(function (err, data) {
+                getRegFixes(commit.toString(), sndToLastCommit, function (err, data) {
                     extractESF(results.rows, function (err, ESFdata) {
                         var averages = {
                             errors: ESFdata.errors / numtests,
@@ -429,7 +437,6 @@ CassandraBackend.prototype.getStatistics = function (cb) {
                             score: ESFdata.totalscore / numtests,
                             numtests: numtests
                         }
-
                         var results = {
                             numtests: numtests,
                             noerrors: ESFdata.noerrors,
@@ -468,7 +475,7 @@ CassandraBackend.prototype.getStatistics = function (cb) {
         - Go through each, and for every tests
           If(score == 0) then noerrors++ ; nofails++; noskips++;
           else IF(score > 1000000) -> do nothing
-          else If(score > 1000) (it's a fail = noerrors++) 
+          else If(score > 1000) (it's a fail = noskips++) 
           else If(score > 0 ) (it's a skip = noerrors++; no fails++) 
     3) We have latest commit, num tests and For now, 
     just mock the data for numreg, numfixes, and crashes and latest commit
@@ -884,7 +891,7 @@ function calcRegressionFixes(r1, r2, cb) {
     //   }
     // }
 
-    // //console.log("data: " + JSON.stringify(regData, null, '\t') + "\n" + JSON.stringify(fixData,null,'\t'));
+    // //console.log("data: " + JSON.stringify(resgData, null, '\t') + "\n" + JSON.stringify(fixData,null,'\t'));
     // cb (null, regData, fixData);
 
 

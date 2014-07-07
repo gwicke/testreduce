@@ -229,8 +229,8 @@ var statsWebInterface = function ( req, res ) {
     numfixes
     numreg
     **/
-    var fakecommit = new Buffer("0b5db8b91bfdeb0a304b372dd8dda123b3fd1ab6");
-	backend.getStatistics(fakecommit, function(err, result) {
+	// XXX: do we really need to pass in the commit here?
+	backend.getStatistics(null, function(err, result) {
 	  var tests = result.numtests;
 	  var errorLess = result.noerrors;
 	  var skipLess = result.noskips;
@@ -267,7 +267,7 @@ var statsWebInterface = function ( req, res ) {
 	  displayRow(res, "Git SHA1", result.latestcommit);
 	  displayRow(res, "Test Results", tests);
 	  displayRow( res, "Crashers",
-	           '<a href="/crashers">' + result.crashes + '</a>' );
+	           '<a href="/crashers">' + result.noerrors + '</a>' );
 	  displayRow(res, "Regressions",
 	           '<a href="/regressions/between/' + result.latestcommit + '/' +
 	           result.beforelatestcommit + '">' +
@@ -361,8 +361,7 @@ var GET_crashers = function( req, res ) {
 var GET_failsDistr = function( req, res ) {
     res.write('<html><body>\n');
     res.write('<h1>Distribution of semantic errors</h1>');
-    var fakecommit = new Buffer("0b5db8b91bfdeb0a304b372dd8dda123b3fd1ab6");
-    backend.getFailsDistr(fakecommit, function(err, result) {
+    backend.getFailsDistr(null, function(err, result) {
         res.write( '<table><tr style="font-weight:bold"><td style="padding-left:20px;">' + '# errors' );
         res.write( '</td><td style="padding-left:20px;">' + '#pages' + '</td></tr>' );
         // console.log(result.fails);
@@ -380,7 +379,7 @@ var GET_failsDistr = function( req, res ) {
 var GET_skipsDistr = function( req, res ) {
     res.write('<html><body>\n');
     res.write('<h1>Distribution of syntactic errors</h1>');
-    var fakecommit = new Buffer("0b5db8b91bfdeb0a304b372dd8dda123b3fd1ab6");
+    //var fakecommit = new Buffer("0b5db8b91bfdeb0a304b372dd8dda123b3fd1ab6");
     backend.getSkipsDistr(fakecommit, function(err, result) {
         res.write( '<table><tr style="font-weight:bold"><td style="padding-left:20px;">' + '# errors' );
         res.write( '</td><td style="padding-left:20px;">' + '#pages' + '</td></tr>' );

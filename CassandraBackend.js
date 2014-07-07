@@ -158,7 +158,9 @@ function initTestPQ(commitIndex, numTestsLeft, cb) {
                 cb(null);
             }
 
-            if (numTestsLeft - results.rows.length > 0) {
+				console.log('left', commitIndex, this.commits.length);
+            if (numTestsLeft - results.rows.length > 0
+					&& commitIndex < this.commits.length - 1) {
                 var redo = initTestPQ.bind(this);
                 return redo(commitIndex + 1, numTestsLeft - results.rows.length, cb);
             }
@@ -182,6 +184,7 @@ function initTestPQ(commitIndex, numTestsLeft, cb) {
 			queryCB.call(self, err, result);
 		});
     } else {
+		console.log('lastCommit', lastCommit.toString(), '@', commitIndex);
 		var cql = 'select test, score, commit from test_by_score where commit = ?';
 
 		this.client.execute(cql, [lastCommit], this.consistencies.write, queryCB.bind(this));
@@ -342,7 +345,7 @@ CassandraBackend.prototype.updateCommits = function (lastCommitTimestamp, commit
  */
 CassandraBackend.prototype.getTest = function (clientCommit, clientDate, cb) {
     var retry = this.getTestToRetry(),
-        lastCommitTimestamp = null,
+        lastCommitTimestamp = new Date(0),
         retVal = {
             error: {
                 code: 'ResourceNotFoundError',
@@ -350,10 +353,9 @@ CassandraBackend.prototype.getTest = function (clientCommit, clientDate, cb) {
             }
         };
 
-	if (this.commits.length) {
-		lastCommitTimestamp = this.commits[0].timestamp;
-		this.updateCommits(lastCommitTimestamp, clientCommit, clientDate);
-	}
+	lastCommitTimestamp = this.commits[0] && this.commits[0].timestamp
+							|| new Date(0);
+	this.updateCommits(lastCommitTimestamp, clientCommit, clientDate);
 
     if (lastCommitTimestamp && lastCommitTimestamp > clientDate) {
         retVal = {
@@ -425,6 +427,8 @@ CassandraBackend.prototype.getNumRegFix = function(cb) {
 
  */
 CassandraBackend.prototype.getStatistics = function (commit, cb) {
+	//console.log('getStatistics', commit.toString());
+	commit = this.commits.length && this.commits[this.commits.length - 1].hash || null;
 
     /**
      * @param result
@@ -463,16 +467,13 @@ CassandraBackend.prototype.getStatistics = function (commit, cb) {
      */
 
 
-    var args = [],
-        results = {};
-
 
     //if it's not the latest revision AND latestRevision isn't empty,
     //then we can just look it up in the revision summary table
 
     //else if it's the latest revision, we have to dynamically compute it and then insert
     var cql = "select score from test_by_score where commit = ?"
-    args = args.concat([commit]);
+		, args = [commit];
 
     var getRegFixes = this.getNumRegFix.bind(this);
     this.client.execute(cql, args, this.consistencies.write, function (err, results) {
@@ -485,10 +486,10 @@ CassandraBackend.prototype.getStatistics = function (commit, cb) {
             cb(null);
 		} else if(!results.rows.length) {
 			averages = {
-				errors: 0,
-				fails: 0,
-				skips: 0,
-				score: 0,
+				errors: null,
+				fails: null,
+				skips: null,
+				score: null,
 				numtests: numtests
 			};
 			cb (null, {
@@ -699,6 +700,9 @@ CassandraBackend.prototype.getTopFails = function (offset, limit, cb) {
 }
 
 CassandraBackend.prototype.getFailsDistr = function(commit, cb) {
+	var commit = this.commits.length
+		&& this.commits[this.commits.length - 1]
+		|| null;
     var args = [],
     results = {};
 

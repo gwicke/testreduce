@@ -3,7 +3,7 @@
   "description": "Mediawiki parser for the VisualEditor - test server.",
   "version": "0.0.1",
   "dependencies": {
-    "node-cassandra-cql": "^0.3.1",
+    "node-cassandra-cql": "^0.5.0",
     "optimist": "0.x.x",
     "mysql": "2.x.x",
     "mysql-queues": "1.x.x",

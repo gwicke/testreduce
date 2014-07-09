@@ -1,10 +1,6 @@
 var options = {
                 hosts: [ 'localhost' ],
-                keyspace: 'testreducedb',
-                username: 'testreduce',
-                password: '',
-                poolSize: 1,
-                consistencies: { read: 'one', write: 'one' }
+                keyspace: 'testreducedb'
               };
 
 var cql = require('node-cassandra-cql'),
@@ -22,14 +18,22 @@ var createTestBlob = function(prefix, title) {
     return new Buffer(JSON.stringify({prefix: prefix, title:title, oldid:42}));
 };
 
-var insertTestBlob = function(prefix, title) {
-    console.log('insert called');
+var insertTestBlobs = function(prefix, titles) {
     var query = 'insert into tests (test) values (?);';
-    client.execute(query, [createTestBlob(prefix, title)], 1, function(err, result) {
+    var queries = titles.map(function(title) {
+        return {
+            query: query,
+            params: [createTestBlob(prefix, title)]
+        };
+    });
+    client.executeBatch(queries, 1,
+    function(err, result) {
         if (err) {
-            console.log(err);
-        } else {
+            console.error('Error during import', e, e.stack);
+            process.exit(1);
         }
+        console.log('All titles imported!');
+        client.shutdown();
     });
 };
 
@@ -52,13 +56,7 @@ var loadJSON = function(prefix) {
     var i, titles = require(['./', prefix, 'wiki-10000.json'].join(''));
     console.log('importing ' + prefix + ' wiki articles from:');
     console.log(['./', prefix, 'wiki-10000.json'].join(''));
-    for (i = 0; i < titles.length; i++) {
-        console.log(prefix, titles[i]);
-        insertTestBlob(prefix + 'wiki', titles[i]);
-        //insertTestByScore(prefix + 'wiki', titles[i]);
-    }
-    console.log('done importing ' + prefix + ' wiki articles');
+    insertTestBlobs(prefix + 'wiki', titles);
 };
 
 loadJSON(argv['_'][0]);
-process.exit(0);

@@ -142,16 +142,15 @@ function initTestPQ(commitIndex, numTestsLeft, cb) {
 
             cb(null);
         } else {
-
             for (var i = 0; i < results.rows.length; i++) {
                 var result = results.rows[i];
                 this.testQueue.enq({
-                    test: result[0],
-                    score: result[1],
-                    commit: result[2].toString(),
+                    test: result['test'],
+                    score: result['score'],
+                    commit: result['commit'].toString(),
                     failCount: 0
                 });
-                this.testScores[result[1].toString()] = result[1];
+                this.testScores[result['commit'].toString()] = result['commit'];
             }
 
             if (numTestsLeft == 0 || !this.commits.length
@@ -172,7 +171,8 @@ function initTestPQ(commitIndex, numTestsLeft, cb) {
 
     this.latestRevision.commit = lastCommit;
     //console.log("lastcommit: " + lastCommit);
-    if (!lastCommit) {
+    //XXX change this condition to !lastCommit later when test_by_score is not empty
+    if (true) {
 		var cql = 'select test from tests',
 			self = this;
 
@@ -183,9 +183,10 @@ function initTestPQ(commitIndex, numTestsLeft, cb) {
 
 			// add score and commit entries
 			result.rows.forEach(function(row) {
-				row[1] = 0; // score
-				row[2] = ''; // commit
+				row['score'] = 0; // score
+				row['commit'] = ''; // commit
 			});
+
 			queryCB.call(self, err, result);
 		});
     } else {
@@ -205,16 +206,16 @@ function initTopFails(cb) {
             console.log('error in init top fails');
             cb(err);
         } else if (!results || !results.rows || results.rows.length === 0) {
-            console.log("no results found in initTopFails")
+            console.log("no results found in initTopFails");
             cb(null);
         } else {
             for (var i = 0; i < results.rows.length; i++) {
                 var result = results.rows[i];
-                var index = findWithAttr(this.topFailsArray, "test", result[0]);
+                var index = findWithAttr(this.topFailsArray, "test", result['test']);
                 if (index === -1 || this.topFailsArray === undefined ) {
-                    this.topFailsArray.push({ test: result[0], score: result[1], commit: result[2].toString()});
-                } else if(this.topFailsArray[index].score <= result[1]) {
-                    this.topFailsArray[index] ={ test: result[0], score: result[1], commit: result[2].toString()};
+                    this.topFailsArray.push({ test: result['test'], score: result['score'], commit: result['commit'].toString()});
+                } else if(this.topFailsArray[index].score <= result['score']) {
+                    this.topFailsArray[index] ={ test: result['test'], score: result['score'], commit: result['commit'].toString()};
                 }
             }
 

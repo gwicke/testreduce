@@ -67,7 +67,7 @@ var loadJSON = function(prefix) {
     console.log('importing ' + prefix + ' wiki articles from:');
     console.log(['./', prefix, 'wiki-10000.json'].join(''));
     insertTestBlobs(prefix + 'wiki', titles);
-    insertTestByScore(prefix + 'wiki', titles);
+    //insertTestByScore(prefix + 'wiki', titles);
 };
 
 loadJSON(argv['_'][0]);

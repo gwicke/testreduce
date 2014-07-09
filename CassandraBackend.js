@@ -88,9 +88,9 @@ function getCommits(cb) {
                 // commits are currently saved as blobs, we shouldn't call toString on them...
                 // commit[0].toString()
                 this.commits.push({
-                    hash: commit[0],
-                    timestamp: commit[1],
-                    isKeyframe: commit[2]
+                    hash: commit['hash'],
+                    timestamp: commit['dateOf(tid)'],
+                    isKeyframe: commit['keyframe']
                 });
             }
             this.commits.sort(function (a, b) {
@@ -142,6 +142,7 @@ function initTestPQ(commitIndex, numTestsLeft, cb) {
 
             cb(null);
         } else {
+
             for (var i = 0; i < results.rows.length; i++) {
                 var result = results.rows[i];
                 this.testQueue.enq({
@@ -150,7 +151,7 @@ function initTestPQ(commitIndex, numTestsLeft, cb) {
                     commit: result[2].toString(),
                     failCount: 0
                 });
-                this.testScores[result[0].toString()] = result[1];
+                this.testScores[result[1].toString()] = result[1];
             }
 
             if (numTestsLeft == 0 || !this.commits.length
@@ -201,7 +202,7 @@ function initTopFails(cb) {
 	}
     var queryCB = function (err, results) {
         if (err) {
-            console.log('in error init top fails');
+            console.log('error in init top fails');
             cb(err);
         } else if (!results || !results.rows || results.rows.length === 0) {
             console.log("no results found in initTopFails")
@@ -243,7 +244,6 @@ function initTopFails(cb) {
       cb(error);
     }
     var cql = 'select test, score, commit from test_by_score where commit = ?';
-
 
     this.client.execute(cql, [lastCommit], this.consistencies.write, queryCB.bind( this ));
 }
@@ -324,11 +324,11 @@ CassandraBackend.prototype.updateCommits = function (lastCommitTimestamp, commit
                 console.log(err);
             }
         });
-
+        self = this;
         this.getStatistics(new Buffer(commit), function (err, result) {
             cql = 'insert into revision_summary (revision, errors, skips, fails, numtests) values (?, ? , ? , ?, ?);';
             args = [new Buffer(commit), result.averages.errors, result.averages.skips, result.averages.fails, result.averages.numtests];
-            this.client.execute(cql, args, this.consistencies.write, function(err, result) {
+            self.client.execute(cql, args, self.consistencies.write, function(err, result) {
                 if (err) {
                     console.log(err);
                 }

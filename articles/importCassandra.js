@@ -29,7 +29,7 @@ var insertTestBlobs = function(prefix, titles) {
     client.executeBatch(queries, 1,
     function(err, result) {
         if (err) {
-            console.error('Error during import', e, e.stack);
+            console.error('Error during import', err, err.stack);
             process.exit(1);
         }
         console.log('All titles imported!');

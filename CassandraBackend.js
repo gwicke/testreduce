@@ -170,12 +170,16 @@ function initTestPQ(commitIndex, numTestsLeft, cb) {
     var lastCommit = this.commits[commitIndex] && this.commits[commitIndex].hash;
 
     this.latestRevision.commit = lastCommit;
-    //console.log("lastcommit: " + lastCommit + " lasthash: " + lastHash );
+    //console.log("lastcommit: " + lastCommit);
     if (!lastCommit) {
 		var cql = 'select test from tests',
 			self = this;
 
-		this.client.execute(cql, [lastCommit], this.consistencies.write, function (err, result) {
+		this.client.execute(cql, null, this.consistencies.write, function (err, result) {
+			if(err) {
+				cb(err);
+			}
+
 			// add score and commit entries
 			result.rows.forEach(function(row) {
 				row[1] = 0; // score

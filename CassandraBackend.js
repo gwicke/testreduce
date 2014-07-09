@@ -494,10 +494,10 @@ CassandraBackend.prototype.getStatistics = function (commit, cb) {
 				fails: null,
 				skips: null,
 				score: null,
-				numtests: numtests
+				numtests: results.rows.length
 			};
 			cb (null, {
-                    numtests: numtests,
+                    numtests: results.rows.length,
                     noerrors: 0,
                     noskips: 0,
                     nofails: 0,

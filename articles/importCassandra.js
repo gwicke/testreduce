@@ -37,17 +37,27 @@ var insertTestBlobs = function(prefix, titles) {
     });
 };
 
-var insertTestByScore = function(prefix, title) {
-    console.log("insert called on testbyscore")
-    var query = "insert into test_by_score (commit, delta, test, score) values (?, ?, ?, ?);",
-        commit = new Buffer(DUMMYCOMMIT),
-        delta = 0,
-        test = createTestBlob(prefix, title),
-        score = Math.floor(Math.random() * (10000));
-    client.execute(query, [commit, delta, test, score], 1, function(err, result) {
+var insertTestByScore = function(prefix, titles) {
+    var query = "insert into test_by_score (commit, delta, test, score) values (?, ?, ?, ?);";
+    var queries = titles.map(function(title) {
+        return {
+                query : query,
+                params: [
+                        commit = new Buffer(DUMMYCOMMIT),
+                        delta = 0,
+                        test = createTestBlob(prefix, title),
+                        score = Math.floor(Math.random() * (10000))
+                        ]
+                };
+        });
+
+    client.executeBatch(queries, 1, function(err, result) {
         if (err) {
-            console.log(err);
+            console.error('Error during import', err, err.stack);
+            client.shutdown();
         } else {
+            console.log('All scores imported!');
+            client.shutdown();
         }
     });
 };
@@ -57,6 +67,7 @@ var loadJSON = function(prefix) {
     console.log('importing ' + prefix + ' wiki articles from:');
     console.log(['./', prefix, 'wiki-10000.json'].join(''));
     insertTestBlobs(prefix + 'wiki', titles);
+    insertTestByScore(prefix + 'wiki', titles);
 };
 
 loadJSON(argv['_'][0]);

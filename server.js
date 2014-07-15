@@ -229,8 +229,10 @@ var statsWebInterface = function ( req, res ) {
     numfixes
     numreg
     **/
-	// XXX: do we really need to pass in the commit here?
-	backend.getStatistics(null, function(err, result) {
+
+	backend.getStatistics(function(err, result) {
+      if(err) return res.end("There's an error or lack of commit or testbyscore data: " + err);
+
 	  var tests = result.numtests;
 	  var errorLess = result.noerrors;
 	  var skipLess = result.noskips;
@@ -543,7 +545,6 @@ var TESTGET_tfArray = function(req, res) {
     console.log("page: " + page + " numperPage: " + numperpage);
 
     backend.getTFArray(function(err, result) {
-        console.log("result: " + result[0]);
         res.end(JSON.stringify({
             err: err,
             array: result.slice(numperpage*page, numperpage*(page+1))

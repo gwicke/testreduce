@@ -53,8 +53,10 @@ function CassandraBackend(name, config, callback) {
     self.latestRevision = {};
     self.testScores = [];
     self.topFailsArray = [];
+    self.testByScoreToCommit =[]; 
 
     self.tasks =[getCommits.bind(this), getTests.bind(this), initTestPQ.bind(this), initTopFails.bind(this)];
+
     // Load all the tests from Cassandra - do this when we see a new commit hash
 
     async.waterfall(self.tasks, function (err, result) {
@@ -151,6 +153,7 @@ function initTestPQ(commitIndex, numTestsLeft, cb) {
                     failCount: 0
                 });
                 this.testScores[result['commit'].toString()] = result['commit'];
+                this.testByScoreToCommit.push(result['commit']);
             }
 
             if (numTestsLeft == 0 || !this.commits.length
@@ -326,7 +329,7 @@ CassandraBackend.prototype.updateCommits = function (lastCommitTimestamp, commit
             }
         });
         self = this;
-        this.getStatistics(new Buffer(commit), function (err, result) {
+        this.getStatistics(function (err, result) {
             cql = 'insert into revision_summary (revision, errors, skips, fails, numtests) values (?, ? , ? , ?, ?);';
             args = [new Buffer(commit), result.averages.errors, result.averages.skips, result.averages.fails, result.averages.numtests];
             self.client.execute(cql, args, self.consistencies.write, function(err, result) {
@@ -391,36 +394,56 @@ CassandraBackend.prototype.getTest = function (clientCommit, clientDate, cb) {
 /**
 Computes the number of regression and fixes based on deltas
 **/
-CassandraBackend.prototype.getNumRegFix = function(cb) {
-  var args = [];
-  var cql = "select delta from test_by_score where commit = ?";
-  args = args.concat([this.latestRevision.commit]);
-
-  this.client.execute(cql, args, this.consistencies.write,function(err, results) {
-    if (err) {
-        console.log("err: " + err);
-        cb(err);
-    } else if (!results || !results.rows) {
-        console.log('no seen commits, error in database');
-        cb(null);
-    } else {
-      var data = results.rows;
-      var res = {
-        reg: 0,
-        fix: 0
-      }
-      //console.log("data: " + JSON.stringify(data,null,'\t'));
-      for(var y in data) {
-        if(data[y][0] > 0) {
-            res.reg++;
-        } else if(data[y][0] < 0) {
-            res.fix++;
+CassandraBackend.prototype.getNumRegFix = function(r1, r2, cb) {
+  var calc = calcRegressionFixes.bind(this), res;
+  if ( r2 ) {
+      calc(r1, r2, function (err, regressions, fixes) {
+        if (err) {
+            console.log(err);
+            res = {
+                reg: 0,
+                fix: 0
+            };
+            cb(err, res);
+        } else {
+            res = {
+                reg: regressions.length,
+                fix: fixes.length
+            };
+            cb(null, res);
         }
-      }
-      cb(null, res);
+      });
+  } else {
+      var args = [];
+      var cql = "select delta from test_by_score where commit = ?";
+      args = args.concat([this.latestRevision.commit]);
+
+      this.client.execute(cql, args, this.consistencies.write,function(err, results) {
+        if (err) {
+            console.log("err: " + err);
+            cb(err);
+        } else if (!results || !results.rows) {
+            console.log('no seen commits, error in database');
+            cb(null);
+        } else {
+          var data = results.rows;
+          var res = {
+            reg: 0,
+            fix: 0
+          };
+          //console.log("data: " + JSON.stringify(data,null,'\t'));
+          for(var y in data) {
+            if(data[y][0] > 0) {
+                res.reg++;
+            } else if(data[y][0] < 0) {
+                res.fix++;
+            }
+          }
+          cb(null, res);
+        }
+      });
     }
-  })
-}
+};
 
 /**
  * Get results ordered by score
@@ -428,13 +451,10 @@ CassandraBackend.prototype.getNumRegFix = function(cb) {
  * @param cb- (err, result), result is defined below
  *
 
+*/
 
-
- */
-CassandraBackend.prototype.getStatistics = function (commit, cb) {
-	//console.log('getStatistics', commit.toString());
-	commit = this.commits.length && this.commits[this.commits.length - 1].hash || null;
-
+CassandraBackend.prototype.getStatistics = function (cb) {
+    
     /**
      * @param result
      *  Required results:
@@ -456,9 +476,9 @@ CassandraBackend.prototype.getStatistics = function (commit, cb) {
         - Go through each, and for every tests
           If(score == 0) then noerrors++ ; nofails++; noskips++;
           else IF(score > 1000000) -> do nothing
-          else If(score > 1000) (it's a fail = noerrors++)
-          else If(score > 0 ) (it's a skip = noerrors++; no fails++)
-    3) We have latest commit, num tests and For now,
+          else If(score > 1000) (it's a fail = noskips++) 
+          else If(score > 0 ) (it's a skip = noerrors++; no fails++) 
+    3) We have latest commit, num tests and For now, 
     just mock the data for numreg, numfixes, and crashes and latest commit
 
 
@@ -469,35 +489,28 @@ CassandraBackend.prototype.getStatistics = function (commit, cb) {
     insert into test_by_score (commit, delta, test, score) values (textAsBlob('bdb14fbe076f6b94444c660e36a400151f26fc6f'), 0, textAsBlob('{"prefix": "enwiki", "title": "\"Slonowice_railway_station\""}'), 10500);
     insert into test_by_score (commit, delta, test, score) values (textAsBlob('bdb14fbe076f6b94444c660e36a400151f26fc6f'), 0, textAsBlob('{"prefix": "enwiki", "title": "\"Salfoeld\""}'), 1050);
     insert into test_by_score (commit, delta, test, score) values (textAsBlob('bdb14fbe076f6b94444c660e36a400151f26fc6f'), 0, textAsBlob('{"prefix": "enwiki", "title": "\"Aghnadarragh\""}'), 100);
-     */
+    */
 
-
-
-    //if it's not the latest revision AND latestRevision isn't empty,
-    //then we can just look it up in the revision summary table
-
-    //else if it's the latest revision, we have to dynamically compute it and then insert
-    var cql = "select score from test_by_score where commit = ?"
-		, args = [commit];
+    //console.log('getStatistics', commit.toString());
+    commit = this.commits.length && this.commits[this.commits.length - 1].hash || "";
 
     var getRegFixes = this.getNumRegFix.bind(this);
-    this.client.execute(cql, args, this.consistencies.write, function (err, results) {
-		var averages;
+    var generateStatsCB = function (err, results) {
         if (err) {
             console.log("err: " + err);
             cb(err);
         } else if (!results || !results.rows) {
-            console.log('no seen commits');
+            console.log('no seen commits, error in database');
             cb(null);
-		} else if(!results.rows.length) {
-			averages = {
-				errors: null,
-				fails: null,
-				skips: null,
-				score: null,
-				numtests: results.rows.length
-			};
-			cb (null, {
+        } else if(!results.rows.length) {
+            averages = {
+                errors: null,
+                fails: null,
+                skips: null,
+                score: null,
+                numtests: results.rows.length
+            };
+            cb (null, {
                     numtests: results.rows.length,
                     noerrors: 0,
                     noskips: 0,
@@ -506,40 +519,79 @@ CassandraBackend.prototype.getStatistics = function (commit, cb) {
                     numReg: 0,
                     numFixes: 0,
                     averages: averages
-                });
-
-        } else {
-            //console.log("hooray we have data!: " + JSON.stringify(results, null,'\t'));
-            var numtests = results.rows.length;
-            getRegFixes(function(err, data) {
-              extractESF(results.rows, function (err, ESFdata) {
-               averages = {
-                    errors: ESFdata.errors / numtests,
-                    fails: ESFdata.fails / numtests,
-                    skips: ESFdata.skips / numtests,
-                    score: ESFdata.totalscore / numtests,
-                    numtests: numtests
-                }
-
-                var results = {
-                    numtests: numtests,
-                    noerrors: ESFdata.noerrors,
-                    noskips: ESFdata.noskips,
-                    nofails: ESFdata.nofails,
-                    latestcommit: commit.toString(),
-                    numReg: data.reg,
-                    numFixes: data.fix,
-                    averages: averages
-                }
-                cb(null, results);
-              });
             });
-
+        } else {
+            // console.log("hooray we have data!: " + JSON.stringify(results.rows, null,'\t'));
+            var numtests = results.rows.length;
+            getRegFixes(commit.toString(), sndToLastCommit, function (err, data) {
+                if (err) {
+                    cb(err);
+                }
+                extractESF(results.rows, function (err, ESFdata) {
+                    var averages = {
+                        errors: ESFdata.errors / numtests,
+                        fails: ESFdata.fails / numtests,
+                        skips: ESFdata.skips / numtests,
+                        score: ESFdata.totalscore / numtests,
+                        numtests: numtests
+                    };
+                    var results = {
+                        numtests: numtests,
+                        noerrors: ESFdata.noerrors,
+                        noskips: ESFdata.noskips,
+                        nofails: ESFdata.nofails,
+                        latestcommit: commit.toString(),
+                        beforelatestcommit: sndToLastCommit,
+                        numReg: data.reg,
+                        numFixes: data.fix,
+                        averages: averages
+                    };
+                    cb(null, results);
+                });
+            });
         }
-    })
-    //var results = {};
+    };
 
-}
+    //if it's not the latest revision AND latestRevision isn't empty,
+    //then we can just look it up in the revision summary table
+
+    //else if it's the latest revision, we have to dynamically compute it and then insert
+    var args = [],
+        results = {},
+        sndToLastCommit = "",
+        self = this;
+
+    var execLatestCommits = returnLatestCommit.bind(this);
+    //first take the 2nd to last revision from the commits array
+    execLatestCommits(function (err, com1, com2) {
+        if (err) {
+            return cb(err);
+        } else {
+            commit = com1;
+            if (com2) //com2 may not exist
+                sndToLastCommit = com2;
+            //else if it's the latest revision, we have to dynamically compute it and then insert
+            var cql = "select score from test_by_score where commit = ?";
+            args = args.concat([commit]);
+
+            var shouldExec = true;
+            if (self.testQueue.length && self.testQueue.peek().commit === commit.toString()) {
+                shouldExec = false;
+            }
+
+            if (shouldExec)
+                self.client.execute(cql, [commit], self.consistencies.write, generateStatsCB.bind(self));
+            else {
+                var results = {};
+                results.rows = self.testByScoreToCommit;
+                var noQueryGen = generateStatsCB.bind(self);
+                console.log("no additional query needed");
+                return noQueryGen(null, results);
+            }
+            //var results = {};
+        }
+    });
+};
 
 var extractESF = function (rows, cb) {
     var noerrors = 0,
@@ -549,8 +601,7 @@ var extractESF = function (rows, cb) {
     var totalscore = 0;
 
     async.each(rows, function (item, callback) {
-        //console.log("item: " + JSON.stringify(item, null,'\t'));
-        var data = item[0];
+        var data = item[0]  || item;
         if (data < 1000000) {
             if (data == 0) {
                 noerrors++;
@@ -579,11 +630,11 @@ var extractESF = function (rows, cb) {
             skips: skips,
             totalscore: totalscore,
         };
-        //console.log("result: " + JSON.stringify(results, null,'\t'));
+        //console.log("result: " + JSON.stringify(rows, null,'\t'));
         cb(null, results);
 
-    })
-}
+    });
+};
 /**
  * Add a result to storage
  *
@@ -829,7 +880,7 @@ function calcRegressionFixes(r1, r2, cb) {
 
     //select all the test_by_scores from r1, and for each of them, select all of the scores from r2 (if exists)
     //
-    console.log("this.latest: " + this.latestRevision);
+    //console.log("this.latest: " + this.latestRevision);
     var regData = [];
     var fixData = [];
 
@@ -865,7 +916,7 @@ function calcRegressionFixes(r1, r2, cb) {
             //go through firstResults, and for each of its tests find the corresponding one
             //in the results rows, and for each of them that are regressions, push it to the regData, else fixData
             for(var y in firstResults) {
-                console.log("result: " + firstResults[y][0].toString());
+                //console.log("result: " + firstResults[y][0].toString());
                 for(var x in data) {
                     if(data[x][0].toString() === firstResults[y][0].toString()) {
                       // var ret = {
@@ -899,7 +950,7 @@ function calcRegressionFixes(r1, r2, cb) {
     //   }
     // }
 
-    // //console.log("data: " + JSON.stringify(regData, null, '\t') + "\n" + JSON.stringify(fixData,null,'\t'));
+    // //console.log("data: " + JSON.stringify(resgData, null, '\t') + "\n" + JSON.stringify(fixData,null,'\t'));
     // cb (null, regData, fixData);
 
 
@@ -970,6 +1021,21 @@ CassandraBackend.prototype.getFixes = function (r1, r2, prefix, page, cb) {
             cb(null, fixes, mydata);
         });
     });
+}
+
+/*
+This function returns the last 2commits
+if there's only one commit, it only returns one
+*/
+var returnLatestCommit = function(cb) {
+  if(!this.commits || this.commits.length === 0)  {
+    cb("no commits found");
+  } else {
+    if(this.commits.length === 1)
+    cb(null, this.commits[this.commits.length-1].hash);
+    else 
+    cb( null, this.commits[this.commits.length-1].hash, this.commits[this.commits.length-2].hash);
+  }
 }
 // Node.js module exports. This defines what
 // require('./CassandraBackend.js'); evaluates to.

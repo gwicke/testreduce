@@ -53,7 +53,7 @@ function CassandraBackend(name, config, callback) {
     self.latestRevision = {};
     self.testScores = [];
     self.topFailsArray = [];
-    self.testByScoreToCommit =[]; 
+    self.testByScoreToCommit =[];
 
     self.tasks =[getCommits.bind(this), getTests.bind(this), initTestPQ.bind(this), initTopFails.bind(this)];
 
@@ -65,7 +65,9 @@ function CassandraBackend(name, config, callback) {
         }
         console.log('in memory queue setup complete');
 
-        self.topFailsArray.sort(function(a,b){return b.score - a.score});
+        self.topFailsArray.sort(function(a,b){
+                return b.score - a.score;
+        });
         //console.log("res: " + JSON.stringify(result,null,'\t'));
     });
 
@@ -288,8 +290,7 @@ CassandraBackend.prototype.getNumRegressions = function (commit, cb) {
 
 CassandraBackend.prototype.removePassedTest = function (testName) {
     for (var i = 0; i < this.runningQueue.length; i++) {
-        var job = this.runningQueue[i];
-        if (job.test === testName) {
+        if (this.runningQueue[i] === testName) {
             this.runningQueue.splice(i, 1);
             break;
         }
@@ -521,6 +522,7 @@ CassandraBackend.prototype.getStatistics = function (cb) {
                     averages: averages
             });
         } else {
+
             // console.log("hooray we have data!: " + JSON.stringify(results.rows, null,'\t'));
             var numtests = results.rows.length;
             getRegFixes(commit.toString(), sndToLastCommit, function (err, data) {
@@ -601,7 +603,7 @@ var extractESF = function (rows, cb) {
     var totalscore = 0;
 
     async.each(rows, function (item, callback) {
-        var data = item[0]  || item;
+        var data = item.score; //|| item;
         if (data < 1000000) {
             if (data == 0) {
                 noerrors++;
@@ -614,7 +616,7 @@ var extractESF = function (rows, cb) {
                 nofails++;
             }
         }
-       var counts = countScore(data);
+        var counts = countScore(data);
         errors += counts.errors;
         fails += counts.fails;
         skips += counts.skips;
@@ -630,7 +632,7 @@ var extractESF = function (rows, cb) {
             skips: skips,
             totalscore: totalscore,
         };
-        //console.log("result: " + JSON.stringify(rows, null,'\t'));
+        //console.log("result: " + JSON.stringify(results, null,'\t'));
         cb(null, results);
 
     });
@@ -735,6 +737,9 @@ CassandraBackend.prototype.getTopFails = function (offset, limit, cb) {
 
     var results = [];
     for (var i = offset; i < limit + offset; i++) {
+        if (!this.topFailsArray[i]) {
+            break;
+        }
         var current = this.topFailsArray[i];
         var score = current.score;
 
@@ -745,15 +750,14 @@ CassandraBackend.prototype.getTopFails = function (offset, limit, cb) {
         // console.log("errors: " + errorsCount);
         // console.log("fails: " + failsCount);
         // console.log("skips: " + skipsCount);
-
         var result = {
             commit: current.commit, test: current.test, skips: counts.skips,
             fails: counts.fails, errors: counts.errors
-        }
+        };
         results.push(result);
     }
     cb(results);
-}
+};
 
 CassandraBackend.prototype.getFailsDistr = function(commit, cb) {
 	var commit = this.commits.length

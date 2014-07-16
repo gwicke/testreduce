@@ -5,8 +5,8 @@ use testreducedb;
 
 -- Results of a particular test at a time.
 CREATE TABLE IF NOT EXISTS results (
+    tid timeuuid, -- commit time stamp
     test blob, -- blob representing the test we are running
-    tid timeuuid, -- time at which we record the result
     result text,
     PRIMARY KEY(test, tid)
 );

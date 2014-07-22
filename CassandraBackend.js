@@ -187,7 +187,7 @@ function initTestPQ(commitIndex, numTestsLeft, cb) {
     var queryCB1 = function(err, results) {
         var cql = 'select test from tests',
             self = this;
-                   
+
         this.client.execute(cql, null, this.consistencies.write, function (err, tests) {
             if(err) {
                 cb(err);
@@ -210,7 +210,7 @@ function initTestPQ(commitIndex, numTestsLeft, cb) {
     var lastCommit = this.commits[commitIndex] && this.commits[commitIndex].hash;
     this.latestRevision.commit = lastCommit;
 
-    var cql = 'select test from results where tid = ? ALLOW FILTERING',
+    var cql = 'select test from results where tid = ?',
         self = this,
         latestCommit = '';
     if (this.commits.length) {
@@ -485,7 +485,7 @@ CassandraBackend.prototype.getNumRegFix = function(r1, r2, cb) {
 */
 
 CassandraBackend.prototype.getStatistics = function (cb) {
-    
+
     /**
      * @param result
      *  Required results:
@@ -507,9 +507,9 @@ CassandraBackend.prototype.getStatistics = function (cb) {
         - Go through each, and for every tests
           If(score == 0) then noerrors++ ; nofails++; noskips++;
           else IF(score > 1000000) -> do nothing
-          else If(score > 1000) (it's a fail = noskips++) 
-          else If(score > 0 ) (it's a skip = noerrors++; no fails++) 
-    3) We have latest commit, num tests and For now, 
+          else If(score > 1000) (it's a fail = noskips++)
+          else If(score > 0 ) (it's a skip = noerrors++; no fails++)
+    3) We have latest commit, num tests and For now,
     just mock the data for numreg, numfixes, and crashes and latest commit
 
 
@@ -1067,7 +1067,7 @@ var returnLatestCommit = function(cb) {
   } else {
     if(this.commits.length === 1)
     cb(null, this.commits[this.commits.length-1].hash);
-    else 
+    else
     cb( null, this.commits[this.commits.length-1].hash, this.commits[this.commits.length-2].hash);
   }
 }

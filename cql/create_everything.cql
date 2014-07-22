@@ -5,11 +5,14 @@ use testreducedb;
 
 -- Results of a particular test at a time.
 CREATE TABLE IF NOT EXISTS results (
-    tid timeuuid, -- commit time stamp
     test blob, -- blob representing the test we are running
+    tid timeuuid, -- commit time stamp
     result text,
     PRIMARY KEY(test, tid)
 );
+
+-- Enable efficient retrieval of all results for a given commit tid
+CREATE INDEX ON results(tid);
 
 -- Map commits to score and test.
 CREATE TABLE IF NOT EXISTS test_by_score (

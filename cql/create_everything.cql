@@ -45,5 +45,6 @@ CREATE TABLE IF NOT EXISTS revision_summary (
     skips int,
     fails int,
     numtests int,
+    skipstats map<text, int>, 
     PRIMARY KEY(revision)
 );

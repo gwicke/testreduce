@@ -381,8 +381,7 @@ var GET_failsDistr = function( req, res ) {
 var GET_skipsDistr = function( req, res ) {
     res.write('<html><body>\n');
     res.write('<h1>Distribution of syntactic errors</h1>');
-    //var fakecommit = new Buffer("0b5db8b91bfdeb0a304b372dd8dda123b3fd1ab6");
-    backend.getSkipsDistr(fakecommit, function(err, result) {
+    backend.getSkipsDistr(function(err, result) {
         res.write( '<table><tr style="font-weight:bold"><td style="padding-left:20px;">' + '# errors' );
         res.write( '</td><td style="padding-left:20px;">' + '#pages' + '</td></tr>' );
         // console.log(result.fails);
